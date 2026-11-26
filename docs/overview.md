@@ -67,6 +67,11 @@ The one thing genuinely at risk is the untethered 4.1 install (see
 - Decrypt: `img3.py` decrypts iBSS/iBEC to the `iBoot-889.24` banner, the
   kernelcache to a valid `complzss` payload, and DeviceTree to a tree naming
   `iPhone3,1` / `N90AP`. Correct `complzss`/banner output confirms the AES-256
-  key+IV path is right.
+  key+IV path is right. `scripts/20-decrypt.sh` automates all six boot images.
+- Kernel: `lzss.py` decompresses the `complzss` kernelcache to a coherent ARM
+  Mach-O — `xnu-1504.50.73`, `MH_EXECUTE`, 4389 symbols, valid prelink info.
+  (Byte-exact round-trip is a later TODO; see the note in `lzss.py`.)
 
-Steps 4–6 build on this.
+Steps 4–6 build on this. The host-side scripts through stage 30 (patch) and the
+stage-40 boot skeleton exist; stages 30/40 are unverified until run on the phone
+(see `patching.md`).
