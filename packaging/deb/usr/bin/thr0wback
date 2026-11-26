@@ -9,10 +9,12 @@
 #   thr0wback list                 # show prepared targets
 #   thr0wback boot <target>        # kloader-boot a target (e.g. 4.0)
 #
-# A "target" is a folder under /var/mobile/thr0wback/<target>/ holding the
-# patched images for that OS: iBEC.img3 (+ kernelcache/DeviceTree as needed).
+# A "target" is a folder under /var/mobile/thr0wback/<target>/ holding a
+# RAW (not IMG3-wrapped) kernel image for that OS — the output of
+# `img3.py decrypt` + `lzss.py decompress` on that version's kernelcache.
 # Those are produced by the build (see docs/on-device.md) — this script only
-# boots what's there.
+# boots what's there. kloader itself refuses IMG3/IM4P files outright, so this
+# checks for that up front with a clearer error.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # EXPERIMENTAL. First confirm 4.0 boots before trying the iOS 3 hybrid. If a
@@ -38,12 +40,14 @@ case "${1:-}" in
     TARGET="${2:-}"; [ -n "$TARGET" ] || die "usage: thr0wback boot <target>"
     DIR="${ROOT}/${TARGET}"
     [ -d "$DIR" ] || die "no such target: ${TARGET} (try: thr0wback list)"
-    IBEC="${DIR}/iBEC.img3"
-    [ -f "$IBEC" ] || die "missing ${IBEC} — target not fully prepared."
+    KERNEL="${DIR}/kernel.macho"
+    [ -f "$KERNEL" ] || die "missing ${KERNEL} — target not fully prepared."
+    MAGIC="$(od -An -tx1 -N4 "$KERNEL" | tr -d ' \n')"
+    [ "$MAGIC" != "33676d49" ] || die "${KERNEL} is still IMG3-wrapped — decrypt with img3.py and decompress with lzss.py first."
     echo "thr0wback: booting ${TARGET} via kloader..."
     echo "  (screen will go black, then the second OS boots; reboot to return)"
     sync
-    exec "$KLOADER" "$IBEC"
+    exec "$KLOADER" "$KERNEL"
     ;;
   *)
     echo "usage: thr0wback {list | boot <target>}"; exit 1 ;;

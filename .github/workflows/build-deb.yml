@@ -4,6 +4,13 @@ name: build-deb
 # it as an artifact. No Apple firmware is fetched, built, or shipped here — the
 # .deb carries only the open-source booter (kloader) and the launcher script.
 # Each user supplies their own firmware on-device (see docs/on-device.md).
+#
+# kloader comes from axi0mX's ios-kexec-utils (github.com/axi0mX/ios-kexec-utils,
+# winocm's original + axi0mX's iOS 4.0-9.3.5 armv7 support). That repo ships a
+# prebuilt universal (armv7+arm64) binary already signed with the tfp0
+# entitlement it needs, so CI uses that directly — rebuilding from kloader.c
+# needs Xcode + an iPhoneOS SDK + ldid, which only run on macOS, not this
+# Ubuntu runner.
 
 on:
   push:
@@ -19,61 +26,33 @@ jobs:
       - name: Install base tools
         run: |
           sudo apt-get update
-          # ldid is not in apt; Theos bundles its own, so don't ask apt for it.
-          sudo apt-get install -y build-essential git perl curl wget unzip \
-            dpkg-dev fakeroot
+          sudo apt-get install -y dpkg-dev fakeroot file
 
-      - name: Install Theos (toolchain + SDK)
+      - name: Fetch kloader from axi0mX/ios-kexec-utils
         run: |
           set -x
-          export THEOS=$HOME/theos
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)" || true
-          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
-          echo "=== toolchain ==="; ls -la "$HOME/theos/toolchain" 2>/dev/null || true
-          echo "=== sdks ==="; ls -la "$HOME/theos/sdks" 2>/dev/null || true
+          git clone --depth 1 https://github.com/axi0mX/ios-kexec-utils.git /tmp/kexec-utils
+          echo "=== repo tree ==="; ls -la /tmp/kexec-utils
+          echo "=== kloader binary ==="; file /tmp/kexec-utils/kloader
 
-      - name: Ensure an armv7-capable iOS SDK
+      - name: Verify it's the expected universal armv7/arm64 Mach-O
         run: |
           set -x
-          cd /tmp
-          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git
-          cd sdks && git sparse-checkout set iPhoneOS9.3.sdk || true
-          ls -la
-          mkdir -p "$THEOS/sdks"
-          cp -r iPhoneOS9.3.sdk "$THEOS/sdks/" 2>/dev/null || true
-          ls -la "$THEOS/sdks" || true
+          FILE_OUT="$(file -b /tmp/kexec-utils/kloader)"
+          echo "$FILE_OUT"
+          case "$FILE_OUT" in
+            *"Mach-O universal"*armv7*) ;;
+            *) echo "unexpected binary format — not packaging it"; exit 1 ;;
+          esac
 
-      - name: Clone + inspect kloader
+      - name: Assemble .deb
         run: |
           set -x
-          git clone --depth 1 https://github.com/winocm/kloader.git /tmp/kloader \
-            || git clone --depth 1 https://github.com/Chronic-Dev/kloader.git /tmp/kloader \
-            || true
-          echo "=== kloader tree ==="; ls -la /tmp/kloader 2>/dev/null || echo "clone failed"
-          echo "=== Makefile ==="; cat /tmp/kloader/Makefile 2>/dev/null || echo "no Makefile"
-
-      - name: Build kloader
-        run: |
-          set -x
-          cd /tmp/kloader 2>/dev/null || { echo "no kloader source"; exit 1; }
-          make clean || true
-          make || echo "BUILD FAILED — logs above show the build system to fix next pass"
-          echo "=== products ==="; find /tmp/kloader -maxdepth 2 -type f \( -name kloader -o -name '*.dylib' \) 2>/dev/null || true
-
-      - name: Assemble .deb (if kloader built)
-        run: |
-          set -x
-          BIN=$(find /tmp/kloader -type f -name kloader ! -name '*.*' 2>/dev/null | head -1)
-          if [ -n "$BIN" ]; then
-            cp "$BIN" packaging/deb/usr/bin/kloader
-            chmod 0755 packaging/deb/usr/bin/kloader packaging/deb/usr/bin/thr0wback
-            fakeroot dpkg-deb --build packaging/deb thr0wback.deb
-            dpkg-deb --info thr0wback.deb
-            dpkg-deb --contents thr0wback.deb
-          else
-            echo "No kloader binary produced yet — .deb skipped."
-            exit 1
-          fi
+          cp /tmp/kexec-utils/kloader packaging/deb/usr/bin/kloader
+          chmod 0755 packaging/deb/usr/bin/kloader packaging/deb/usr/bin/thr0wback
+          fakeroot dpkg-deb --build packaging/deb thr0wback.deb
+          dpkg-deb --info thr0wback.deb
+          dpkg-deb --contents thr0wback.deb
 
       - name: Upload .deb
         if: always()

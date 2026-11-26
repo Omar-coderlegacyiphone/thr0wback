@@ -18,24 +18,40 @@ copyright reasons; it's supplied per-device, from your own firmware.
 
 ## The honest gap: preparing a target
 
-`thr0wback boot <target>` boots whatever patched images sit in
-`/var/mobile/thr0wback/<target>/` (iBEC, kernelcache, DeviceTree). Producing
-those images is the decrypt + **patch** pipeline (`scripts/20`–`30`). Two ways:
+`thr0wback boot <target>` boots whatever sits at
+`/var/mobile/thr0wback/<target>/kernel.macho` — a single **raw, decompressed**
+kernel (kloader itself refuses IMG3/IM4P files and has no further handoff
+logic; see `docs/kloader-port.md` for why one file is all it needs for the
+jump itself). Producing that file is the decrypt + decompress pipeline already
+in this repo:
 
-1. **On-device prep** — run the decrypt/patch steps on the phone (ports of
-   img3.py + the patcher). This is the fully phone-only path and still needs the
-   patcher, which is the one piece under review (see `patching.md`).
-2. **Prep once, copy over** — the images get prepared wherever the patcher runs,
-   then dropped into `/var/mobile/thr0wback/<target>/` on the phone.
+```
+scripts/img3.py decrypt <target-version-kernelcache.img3> --key ... --iv ... -o complzss.bin
+scripts/lzss.py decompress complzss.bin -o kernel.macho
+```
+then drop `kernel.macho` into `/var/mobile/thr0wback/<target>/` on the phone.
+Either on-device (if these get ported to run under the phone's own Python/shell)
+or prepped elsewhere and copied over — either way it comes from **your**
+firmware, not the repo.
 
-Either way the patched images come from **your** firmware, not the repo.
+**Getting a kernel to jump is not the same as getting a second OS to boot.**
+See "The one real gap" in `docs/kloader-port.md` — the realistic first
+milestone is proving the jump itself (even just a panic banner from the other
+version's kernel is a real result), not a fully usable second OS on the first
+try.
 
-## First test milestone
+## First test milestones
 
 1. Install the `.deb` (Cydia / Filza / `dpkg -i`).
-2. Put a prepared **4.0** target in `/var/mobile/thr0wback/4.0/`.
-3. `thr0wback boot 4.0`.
-4. If 4.0 boots → the loader works. Then try a `3.x` target (the moonshot).
+2. **tfp0 sanity check first** — put *any* placeholder file at
+   `/var/mobile/thr0wback/test/kernel.macho` and run `thr0wback boot test`.
+   Watch for `kernel_base: 0x...` printing before it fails on bad content —
+   that confirms `task_for_pid(0)` works under this jailbreak at all, which is
+   the one precondition everything else depends on.
+3. Once that's confirmed, prepare a real **4.0** `kernel.macho` and
+   `thr0wback boot 4.0`. See what lands on screen.
+4. Only after a jump is confirmed working does the harder "mount a matching
+   root filesystem" question become worth chasing.
 
 If a boot hangs, hold **Power+Home** to return to your normal iOS. Nothing is
 written to the active system.

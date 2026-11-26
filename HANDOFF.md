@@ -1,8 +1,10 @@
 # Thr0wback — developer handoff
 
-**Looking for:** someone who writes 32-bit iOS kexec / kernel-access code, to
-finish the on-device booter engine. Most of the groundwork is done; what's left
-is one well-scoped piece. Details below.
+**Looking for:** the ask just got smaller. The kexec engine itself turns out to
+already exist and already claim iOS 4.0 support (below) — what's left is
+on-device verification and, if the jump works, figuring out the root-filesystem
+side of booting a full second OS rather than just reaching its kernel. Someone
+with 32-bit iOS / jailbreak internals experience to drive that. Details below.
 
 ## Goal
 
@@ -47,23 +49,53 @@ All on the real 8B117 firmware, host-side, no device needed:
 
 (Re-extract any symbol: `python3 scripts/ksyms.py <decrypted-kernel.macho> _symbol`.)
 
-## The remaining work (the ask)
+## The remaining work (the ask) — updated after reading the real source
 
-Base: the public `kloader.c` (e.g. `ganoninc/trident-kloader-updated`). Its
-kexec engine **already supports s5l8930x** (`S5L8930_PHYS_OFF 0x40000000`,
-`phys_addr_remap 0x5fe00000`). So:
+Confirmed by cloning and reading it directly, not secondhand: **use
+[`axi0mX/ios-kexec-utils`](https://github.com/axi0mX/ios-kexec-utils)**.
+winocm's original + axi0mX's later work. Its own README states the support
+range outright: **"armv7 support for iOS 4.0-9.3.5 (requires a jailbreak with
+tfp0 kernel patch)."** iPhone 4's SoC is in its chip table by name
+(`S5L8930X` → `case 0x8930`, `gPhysBase 0x40000000` — matches our own
+independently-derived value exactly).
 
-1. **Drop the iOS 9 parts** — `exploit.c`, `offsetfinder.c`. Not needed: the
-   host is already jailbroken.
-2. **Kernel read/write for 4.1** — the one piece to write. kloader expects
-   `task_for_pid(0)` + `vm_read`/`vm_write`. On jailbroken iOS 4 either tfp0 is
-   already granted, or use **`/dev/kmem`** (open on iOS 4). This shim is the
-   heart of the ask.
-3. **Feed the 8B117 offsets** above.
-4. **Build** armv7, `-miphoneos-version-min=4.0`, via theos (CI scaffold exists
-   at `.github/workflows/build-deb.yml`).
-5. **Package** into the `.deb` (`packaging/deb/`, launcher `thr0wback boot <t>`).
-6. **Boot-test on device** — the only real verdict.
+It's one file (`kloader.c`, ~420 lines), nothing to strip — there's no
+Trident/offsetfinder code in this lineage at all (that was a different,
+unrelated iOS 9 fork we'd looked at earlier). And it needs **no per-version
+offsets**: it finds its own kernel base at runtime and pattern-scans the live
+kernel for a wake-resume trampoline instruction sequence, rather than using a
+fixed address. So the offsets we extracted (`config/offsets-iPhone3,1-8B117.json`)
+are good, verified analysis — and a nice cross-check, since the SoC physical
+addresses line up — but this particular tool doesn't actually consume them.
+
+It also already ships a **prebuilt universal binary** (armv7+arm64), signed
+with the `tfp0.plist` entitlement it needs. No Xcode/Mac required to get a
+runnable binary — CI now fetches that binary directly rather than trying to
+compile it (`.github/workflows/build-deb.yml`).
+
+**So the remaining work is no longer "write a kernel-access shim."** It's:
+
+1. **On-device test #1 (do this first):** does `task_for_pid(0)` actually
+   succeed under the Legacy iOS Kit / powdersn0w 4.1 jailbreak? Install the
+   `.deb`, run `thr0wback boot <anything>` with a placeholder file, and check
+   whether `kernel_base: 0x...` prints before it fails on bad content. If tfp0
+   fails outright, *that's* the real blocker — not writing an exploit, just
+   figuring out whether this jailbreak's entitlement/signing patches honor
+   `get-task-allow` the way kloader expects.
+2. **On-device test #2:** with a real target — `img3.py decrypt` +
+   `lzss.py decompress` on a second iOS version's kernelcache, dropped in as
+   `kernel.macho` — does the jump happen at all? Even a panic banner from the
+   *other* version's kernel is a real, checkable result.
+3. **The actual open question, only after #2 works:** kloader's job ends at
+   "jump to this kernel." Getting a kernel to start is not the same as getting
+   a usable second OS (Springboard, apps) — that needs a matching **root
+   filesystem** mounted too. Old CoolStar-style dual-boot tools paired kexec
+   with a second OS partition already restored onto the device, rather than
+   conjuring a filesystem from nothing. Figuring out that piece — once the
+   jump itself is proven — is the real remaining unknown, and it's a
+   storage/partition question now, not a kernel-exploit one.
+
+Full writeup of the source-reading and the reasoning: `docs/kloader-port.md`.
 
 ## Safety / why it's low-risk to try
 
@@ -73,6 +105,16 @@ intact. So iterating on-device can't brick the phone or cost the jailbreak.
 
 ## Status, honestly
 
-Nobody has run kloader on a 4.1 host before — this is unproven and may not boot.
-But the hard analysis (offsets, feasibility, SoC support) is done, and the
-remaining piece is well-scoped. That's the part a kexec dev can actually pick up.
+Nobody has run kloader on a 4.1 host before — this is unproven and may not
+work. But the engine itself is a real, maintained tool that already claims
+iOS 4.0 support, not something that needs to be written. What's actually
+unproven now is narrower: whether this specific jailbreak grants tfp0 the way
+kloader needs, and — if the jump works — what it takes to get a full second
+OS rather than just a kernel-level jump. Both are testable, not theoretical.
+
+## Fast feedback loop available
+
+The device owner has their own Cydia repo and can push an experimental
+package to it and install on the actual iPhone 4 in minutes. That's a real
+advantage for whoever picks this up: build → drop in the repo → install →
+test → report back, all same-day, no waiting on someone else's hardware.
