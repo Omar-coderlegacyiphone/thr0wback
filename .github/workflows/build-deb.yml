@@ -7,7 +7,6 @@ name: build-deb
 
 on:
   push:
-    branches: [ "**" ]
     paths: [ "packaging/**", ".github/workflows/build-deb.yml" ]
   workflow_dispatch:
 
@@ -17,30 +16,68 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install packaging tools
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev fakeroot
-
-      # kloader is the open-source on-device loader. Building it needs an iOS
-      # ARM toolchain (theos + an iOS SDK). That toolchain setup is the one
-      # remaining wiring step; until it's in place this job fails loudly here
-      # rather than shipping a .deb with no loader.
-      - name: Build kloader (iOS ARM)  # TODO: wire up theos + iOS SDK
+      - name: Install base tools
         run: |
-          echo "::error::kloader build not wired up yet — see docs/on-device.md"
-          exit 1
-          # mkdir -p packaging/deb/usr/bin
-          # cp "$KLOADER_BIN" packaging/deb/usr/bin/kloader
+          sudo apt-get update
+          sudo apt-get install -y build-essential git perl curl wget unzip \
+            dpkg-dev fakeroot ldid
 
-      - name: Assemble .deb
+      - name: Install Theos (toolchain + SDK)
         run: |
-          chmod 0755 packaging/deb/usr/bin/thr0wback
-          chmod 0755 packaging/deb/DEBIAN
-          fakeroot dpkg-deb --build packaging/deb thr0wback.deb
-          dpkg-deb --info thr0wback.deb
-          dpkg-deb --contents thr0wback.deb
+          set -x
+          export THEOS=$HOME/theos
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)" || true
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+          echo "=== toolchain ==="; ls -la "$HOME/theos/toolchain" 2>/dev/null || true
+          echo "=== sdks ==="; ls -la "$HOME/theos/sdks" 2>/dev/null || true
+
+      - name: Ensure an armv7-capable iOS SDK
+        run: |
+          set -x
+          cd /tmp
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git
+          cd sdks && git sparse-checkout set iPhoneOS9.3.sdk || true
+          ls -la
+          mkdir -p "$THEOS/sdks"
+          cp -r iPhoneOS9.3.sdk "$THEOS/sdks/" 2>/dev/null || true
+          ls -la "$THEOS/sdks" || true
+
+      - name: Clone + inspect kloader
+        run: |
+          set -x
+          git clone --depth 1 https://github.com/winocm/kloader.git /tmp/kloader \
+            || git clone --depth 1 https://github.com/Chronic-Dev/kloader.git /tmp/kloader \
+            || true
+          echo "=== kloader tree ==="; ls -la /tmp/kloader 2>/dev/null || echo "clone failed"
+          echo "=== Makefile ==="; cat /tmp/kloader/Makefile 2>/dev/null || echo "no Makefile"
+
+      - name: Build kloader
+        run: |
+          set -x
+          cd /tmp/kloader 2>/dev/null || { echo "no kloader source"; exit 1; }
+          make clean || true
+          make || echo "BUILD FAILED — logs above show the build system to fix next pass"
+          echo "=== products ==="; find /tmp/kloader -maxdepth 2 -type f \( -name kloader -o -name '*.dylib' \) 2>/dev/null || true
+
+      - name: Assemble .deb (if kloader built)
+        run: |
+          set -x
+          BIN=$(find /tmp/kloader -type f -name kloader ! -name '*.*' 2>/dev/null | head -1)
+          if [ -n "$BIN" ]; then
+            cp "$BIN" packaging/deb/usr/bin/kloader
+            chmod 0755 packaging/deb/usr/bin/kloader packaging/deb/usr/bin/thr0wback
+            fakeroot dpkg-deb --build packaging/deb thr0wback.deb
+            dpkg-deb --info thr0wback.deb
+            dpkg-deb --contents thr0wback.deb
+          else
+            echo "No kloader binary produced yet — .deb skipped."
+            exit 1
+          fi
 
       - name: Upload .deb
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: thr0wback-deb
           path: thr0wback.deb
+          if-no-files-found: ignore
