@@ -1,0 +1,16 @@
+{
+  "device": "iPhone3,1",
+  "soc": "s5l8930x",
+  "build": "8A293",
+  "ios": "4.0",
+  "note": "Addresses read from the symbolicated kernelcache; verify against 4.1 (7B405/7C144) before trusting on-device.",
+  "symbols": {
+    "_kernel_pmap": "0x80245218",
+    "_kernel_map": "0x80265adc",
+    "_kernel_task": "0x802653e0",
+    "_PE_i_can_has_debugger": "0x801d59b0",
+    "_flush_dcache": "0x8005d068",
+    "_invalidate_icache": "0x8005d5cc",
+    "_IOLog": "0x801a12e0"
+  }
+}
