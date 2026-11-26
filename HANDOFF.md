@@ -82,7 +82,7 @@ after the on-device tests (details: `docs/test-results.md`):
    (no Apple files). The live kernel's hook address (`larm_init_tramp:
    0x80065008`) matched our offline analysis, and the phone ended up stuck in
    the spin loop until Power+Home. Caveat: the 2-second auto-wake missed on the
-   first run; reliability is untested.
+   first run and hit on the next two; too few runs to call it reliable.
 3. **Correction:** kloader runs its file as a *bootloader-style* image (a raw,
    decrypted iBEC, first word `0xea00000e`), **not** a kernel Mach-O as this
    doc previously said. `thr0wback boot` still looks for `kernel.macho` and

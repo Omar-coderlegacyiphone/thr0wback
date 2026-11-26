@@ -43,10 +43,13 @@ Printed: `Read image into buffer ... length: 4096`,
   sleep/wake. Battery was also low, so this is not proven.
 - **Run 2:** same output. The phone did not come back and stayed black until
   Power+Home.
+- **Run 3:** the owner reported "same test, same thing", i.e. the same result as
+  run 2 (stayed black until Power+Home).
 
 **Conclusion:** the wake hook works and code we supply gets executed on this iOS
 version. Not yet established: how reliable the 2-second auto-wake is on its own
-(run 1 missed).
+(run 1 missed, runs 2 and 3 hit; too few runs to call it reliable, and the
+reason for the miss is unknown).
 
 ## Corrected understanding
 

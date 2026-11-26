@@ -109,7 +109,8 @@ one file in, one jump, no further handoff logic. For our use it means:
    self-test image (`thr0wback test`, no Apple files). The printed
    `larm_init_tramp: 0x80065008` matched the offline analysis of the 8B117
    kernel, and the phone ended up stuck in our spin loop until Power+Home. The
-   2-second auto-wake missed on the first run, so reliability is an open item.
+   2-second auto-wake missed on the first run and hit on the next two, so
+   reliability is still an open item.
 4. **Next test: a real image.** Run a decrypted iBEC (from the owner's own
    firmware, never committed) via kloader and see what the phone does. Then
    change `thr0wback boot` to look for `ibec.bin` instead of `kernel.macho`.
