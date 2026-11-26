@@ -53,13 +53,14 @@ addresses straight out. Reference set (iOS 4.0 / 8A293) in
 | `_kernel_task` | `0x802653e0` |
 | `_copyin` / `_copyout` | `0x80066c60` / `0x80066ce0` |
 
-**These are 4.0 values.** Your phone runs **4.1 (8B117)**, whose kernel differs.
-Before on-device use, extract 4.1's offsets the same way:
-`ksyms.py` on the decrypted 4.1 kernelcache. One command, once we pull that IPSW.
+The 4.0 values differ from 4.1, so we extracted the **real 4.1 (8B117)** set —
+done, in `config/offsets-iPhone3,1-8B117.json` (`_kernel_pmap 0x8024e218`, etc.).
+Pulled surgically: a 5 MB range-read of the kernelcache out of the 618 MB IPSW,
+not a full download.
 
 ## Remaining work
 
-1. Fetch + decrypt the **4.1 (8B117)** kernelcache; extract its offsets.
+1. ~~Fetch + decrypt the **4.1 (8B117)** kernelcache; extract its offsets.~~ ✅ done.
 2. Strip Trident/offsetfinder; wire the 4.1 kernel-access shim (tfp0 or /dev/kmem).
 3. Build armv7 (min-version 4.0) in CI; package in the `.deb`.
 4. **On-device test** (the only real verdict).

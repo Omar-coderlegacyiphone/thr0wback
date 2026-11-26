@@ -1,0 +1,19 @@
+{
+  "device": "iPhone3,1",
+  "soc": "s5l8930x",
+  "build": "8B117",
+  "ios": "4.1",
+  "codename": "Baker",
+  "note": "Target device/build. Offsets read from the symbolicated 4.1 kernelcache. These are the addresses the kloader port uses on this phone.",
+  "symbols": {
+    "_kernel_pmap": "0x8024e218",
+    "_kernel_map": "0x8026eadc",
+    "_kernel_task": "0x8026e3e0",
+    "_PE_i_can_has_debugger": "0x801db80c",
+    "_flush_dcache": "0x8005def4",
+    "_invalidate_icache": "0x8005e44c",
+    "_IOLog": "0x801a706c",
+    "_copyin": "0x80066c60",
+    "_copyout": "0x80066ce0"
+  }
+}
