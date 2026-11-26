@@ -1,0 +1,14 @@
+Package: com.thr0wback.booter
+Name: Thr0wback
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Boot an older iOS as a second OS on a jailbroken 32-bit iPhone (experimental)
+ Phone-only CoolBooter-style loader. Uses kloader to boot a prepared second-OS
+ bootchain from the running jailbroken iOS. For hardware you own, with your own
+ firmware. Experimental: iOS 4.0 is the realistic target on iPhone 4; iOS 3 is a
+ moonshot that may not boot.
+Maintainer: Thr0wback
+Author: Thr0wback
+Section: System
+Depends: firmware (>= 4.0)
+Homepage: https://github.com/Omar-coderlegacyiphone/thr0wback

@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# thr0wback — on-device second-OS booter (runs on the jailbroken iPhone itself).
+#
+# No computer. Boots a prepared second-OS bootchain out of the running iOS using
+# kloader. Nothing is written to the active system; a reboot returns to your
+# normal iOS.
+#
+#   thr0wback list                 # show prepared targets
+#   thr0wback boot <target>        # kloader-boot a target (e.g. 4.0)
+#
+# A "target" is a folder under /var/mobile/thr0wback/<target>/ holding the
+# patched images for that OS: iBEC.img3 (+ kernelcache/DeviceTree as needed).
+# Those are produced by the build (see docs/on-device.md) — this script only
+# boots what's there.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# EXPERIMENTAL. First confirm 4.0 boots before trying the iOS 3 hybrid. If a
+# boot hangs, hold Power+Home to reboot back to your normal iOS.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -e
+
+ROOT="/var/mobile/thr0wback"
+KLOADER="$(command -v kloader || echo /usr/bin/kloader)"
+
+die() { echo "thr0wback: $*" >&2; exit 1; }
+
+[ "$(id -u)" = "0" ] || die "run as root (su / sudo)."
+[ -x "$KLOADER" ] || die "kloader not found. Reinstall the package."
+
+case "${1:-}" in
+  list)
+    echo "Prepared targets in ${ROOT}:"
+    [ -d "$ROOT" ] && ls -1 "$ROOT" 2>/dev/null || echo "  (none yet)"
+    ;;
+  boot)
+    TARGET="${2:-}"; [ -n "$TARGET" ] || die "usage: thr0wback boot <target>"
+    DIR="${ROOT}/${TARGET}"
+    [ -d "$DIR" ] || die "no such target: ${TARGET} (try: thr0wback list)"
+    IBEC="${DIR}/iBEC.img3"
+    [ -f "$IBEC" ] || die "missing ${IBEC} — target not fully prepared."
+    echo "thr0wback: booting ${TARGET} via kloader..."
+    echo "  (screen will go black, then the second OS boots; reboot to return)"
+    sync
+    exec "$KLOADER" "$IBEC"
+    ;;
+  *)
+    echo "usage: thr0wback {list | boot <target>}"; exit 1 ;;
+esac
