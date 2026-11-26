@@ -53,9 +53,20 @@ The one thing genuinely at risk is the untethered 4.1 install (see
 
 1. `scripts/00-setup-linux.sh` — install host dependencies.
 2. `scripts/10-fetch-ipsw.sh` — download + verify the stock IPSWs.
-3. Decrypt the IMG3 images with the published per-build keys.
+3. `scripts/img3.py decrypt` — decrypt the IMG3 images with the per-build keys
+   (fetched from the ipsw.me keys API, e.g. `/v4/keys/ipsw/iPhone3,1/8A293`).
 4. Patch the bootchain + kernel to skip signature checks.
 5. (Hybrid) assemble the iOS 3 userland over the 4.0 bootchain.
 6. Boot tethered and iterate on the log.
 
-Steps 3–6 are built after the fetch stage is working and tested.
+### Validated so far (on real iPhone3,1 4.0 / 8A293 firmware)
+
+- Fetch + integrity: the stock IPSW downloads and every image passes its zip CRC.
+  (Heads up: ipsw.me's *outer* SHA1 for this build is stale and won't match; the
+  per-file CRCs are the real check.)
+- Decrypt: `img3.py` decrypts iBSS/iBEC to the `iBoot-889.24` banner, the
+  kernelcache to a valid `complzss` payload, and DeviceTree to a tree naming
+  `iPhone3,1` / `N90AP`. Correct `complzss`/banner output confirms the AES-256
+  key+IV path is right.
+
+Steps 4–6 build on this.
