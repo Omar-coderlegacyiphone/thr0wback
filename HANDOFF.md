@@ -95,6 +95,8 @@ after the on-device tests (details: `docs/test-results.md`):
    second OS partition already restored onto the device, rather than
    conjuring a filesystem from nothing. That is a storage/partition question,
    not a kernel-exploit one.
+   Research so far (including why the one existing iPhone 4 dual boot would
+   replace the 4.1 host): `docs/dualboot-plan.md`.
 
 Full writeup of the source-reading and the reasoning: `docs/kloader-port.md`.
 
