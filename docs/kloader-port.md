@@ -72,15 +72,16 @@ rather than trying to compile it.
 `kloader`'s job ends at: load `argv[1]` into RAM and jump to it. That's all —
 one file in, one jump, no further handoff logic. For our use it means:
 
-- **argv[1] is a decompressed kernel Mach-O** (`img3.py decrypt` →
-  `lzss.py decompress` on the target version's kernelcache — exactly what this
-  repo's scripts already produce). It is **not** an iBEC/iBSS — kloader
-  explicitly refuses IMG3/IM4P files, and there's no bootloader-to-kernel
-  handoff code in it; whatever you hand it must be able to run cold from a
-  jump, the same way it would after iBoot handed off to it normally. (Why a
-  bare jump can work at all: the hardware is already clocked and initialized
-  by the *currently running* OS, which is normally iBoot's job — so a kexec
-  from a live system skips needing iBoot a second time.)
+- **argv[1] is a raw bootloader-style image, not a kernel Mach-O.** (Earlier
+  versions of this doc said "decompressed kernel"; that was wrong, corrected
+  after the on-device tests in `docs/test-results.md`.) kloader copies the file
+  into RAM at `load_address` (`0x5f000000` for S5L8930X), then patches the
+  kernel's wake-up trampoline so the CPU branches to that address on its next
+  wake from sleep, with the MMU off. It warns unless the first word is
+  `0xea00000e` (an iBoot-style entry branch) and prints banner strings from
+  `+0x200/+0x240/+0x280`, so it expects a decrypted **iBEC/iBSS-style** image
+  (raw, not IMG3/IM4P, which it refuses). A kernel Mach-O has no such entry
+  point and would not run from a cold jump.
 - **A kernel booting is not a device booting.** Jumping to the target
   version's kernel should get you at least as far as that kernel's own early
   init — a real, checkable milestone (e.g. its panic/boot banner proves the
@@ -92,29 +93,28 @@ one file in, one jump, no further handoff logic. For our use it means:
   conjuring a filesystem from nothing. **This is the actual open question for
   the next phase, and it's a storage/partition question, not a kernel-exploit
   one.**
-- The earlier `docs/on-device.md` target layout (iBEC + kernelcache +
-  DeviceTree per target) should be read as aspirational for a fuller chain;
-  the concrete next milestone is simpler: one `kernel.macho`, one jump, see
-  what happens.
+- The earlier `docs/on-device.md` per-target layout (iBEC + kernelcache +
+  DeviceTree) is closer to right than "one `kernel.macho`": the image kloader
+  runs is the iBEC, and that iBEC then has to find a kernel, DeviceTree and
+  root filesystem for the second OS.
 
 ## Remaining work, in order
 
 1. ~~Fetch + decrypt the **4.1 (8B117)** kernelcache; extract its offsets.~~ ✅ done
    (useful analysis; not actually consumed by this kloader).
-2. **On-device test #1 — does tfp0 work at all under this jailbreak?** Install
-   the prebuilt `kloader` via the `.deb`, run `thr0wback boot <target>` with
-   any placeholder `kernel.macho` (even garbage) in a target dir, and check
-   whether it gets *past* `task_for_pid(0)` (look for the `kernel_base:
-   0x...` print) before failing on content. If `task_for_pid 0 failed`
-   prints immediately, the Legacy iOS Kit / powdersn0w 4.1 jailbreak doesn't
-   grant tfp0 as-is, and that becomes the real blocker to chase down.
-3. **On-device test #2 — the real jump.** Prepare an actual target: decrypt +
-   decompress a second iOS version's kernelcache into `kernel.macho`, boot it,
-   see what appears on screen (panic banner = the jump worked; something else
-   = debug from there).
-4. **The root-filesystem question**, only once #3 proves the jump works —
-   figure out what it takes to get a mounted, matching userspace for that
-   kernel rather than a jump-and-panic.
+2. ✅ **On-device test #1: does tfp0 work under this jailbreak?** Yes. kloader
+   printed `kern.version ... S5L8930X` and `kernel_base: 0x80000000`, and failed
+   only on the missing file (see `docs/test-results.md`).
+3. ✅ **On-device test #2: can we jump at all?** Yes, using the built-in
+   self-test image (`thr0wback test`, no Apple files). The printed
+   `larm_init_tramp: 0x80065008` matched the offline analysis of the 8B117
+   kernel, and the phone ended up stuck in our spin loop until Power+Home. The
+   2-second auto-wake missed on the first run, so reliability is an open item.
+4. **Next test: a real image.** Run a decrypted iBEC (from the owner's own
+   firmware, never committed) via kloader and see what the phone does. Then
+   change `thr0wback boot` to look for `ibec.bin` instead of `kernel.macho`.
+5. **The root-filesystem question**, once a real image runs: figure out what it
+   takes to get a mounted, matching userspace for the second OS.
 
 ## Safety / why it's low-risk to try
 

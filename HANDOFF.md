@@ -73,27 +73,28 @@ with the `tfp0.plist` entitlement it needs. No Xcode/Mac required to get a
 runnable binary — CI now fetches that binary directly rather than trying to
 compile it (`.github/workflows/build-deb.yml`).
 
-**So the remaining work is no longer "write a kernel-access shim."** It's:
+**So the remaining work is no longer "write a kernel-access shim."** Status
+after the on-device tests (details: `docs/test-results.md`):
 
-1. **On-device test #1 (do this first):** does `task_for_pid(0)` actually
-   succeed under the Legacy iOS Kit / powdersn0w 4.1 jailbreak? Install the
-   `.deb`, run `thr0wback boot <anything>` with a placeholder file, and check
-   whether `kernel_base: 0x...` prints before it fails on bad content. If tfp0
-   fails outright, *that's* the real blocker — not writing an exploit, just
-   figuring out whether this jailbreak's entitlement/signing patches honor
-   `get-task-allow` the way kloader expects.
-2. **On-device test #2:** with a real target — `img3.py decrypt` +
-   `lzss.py decompress` on a second iOS version's kernelcache, dropped in as
-   `kernel.macho` — does the jump happen at all? Even a panic banner from the
-   *other* version's kernel is a real, checkable result.
-3. **The actual open question, only after #2 works:** kloader's job ends at
-   "jump to this kernel." Getting a kernel to start is not the same as getting
-   a usable second OS (Springboard, apps) — that needs a matching **root
-   filesystem** mounted too. Old CoolStar-style dual-boot tools paired kexec
-   with a second OS partition already restored onto the device, rather than
-   conjuring a filesystem from nothing. Figuring out that piece — once the
-   jump itself is proven — is the real remaining unknown, and it's a
-   storage/partition question now, not a kernel-exploit one.
+1. ✅ **tfp0 works** under the Legacy iOS Kit / powdersn0w 4.1 jailbreak
+   (`kernel_base: 0x80000000` printed; kloader only failed on a missing file).
+2. ✅ **The jump works.** `thr0wback test` jumps into a 4 KB spin image we ship
+   (no Apple files). The live kernel's hook address (`larm_init_tramp:
+   0x80065008`) matched our offline analysis, and the phone ended up stuck in
+   the spin loop until Power+Home. Caveat: the 2-second auto-wake missed on the
+   first run; reliability is untested.
+3. **Correction:** kloader runs its file as a *bootloader-style* image (a raw,
+   decrypted iBEC, first word `0xea00000e`), **not** a kernel Mach-O as this
+   doc previously said. `thr0wback boot` still looks for `kernel.macho` and
+   must change to `ibec.bin`.
+4. **Next test:** run a real decrypted iBEC (from the owner's own firmware,
+   never committed) and see what the phone does.
+5. **The actual open question:** getting code to run is not the same as getting
+   a usable second OS (Springboard, apps). That needs a matching **root
+   filesystem** too. Old CoolStar-style dual-boot tools paired kexec with a
+   second OS partition already restored onto the device, rather than
+   conjuring a filesystem from nothing. That is a storage/partition question,
+   not a kernel-exploit one.
 
 Full writeup of the source-reading and the reasoning: `docs/kloader-port.md`.
 
@@ -105,12 +106,10 @@ intact. So iterating on-device can't brick the phone or cost the jailbreak.
 
 ## Status, honestly
 
-Nobody has run kloader on a 4.1 host before — this is unproven and may not
-work. But the engine itself is a real, maintained tool that already claims
-iOS 4.0 support, not something that needs to be written. What's actually
-unproven now is narrower: whether this specific jailbreak grants tfp0 the way
-kloader needs, and — if the jump works — what it takes to get a full second
-OS rather than just a kernel-level jump. Both are testable, not theoretical.
+Proven on the real iPhone 4 / iOS 4.1: the package installs, kloader gets
+tfp0, hooks the wake path, and our own code runs after the wake. Not proven: a
+real iBEC running, the auto-wake's reliability, and (the big one) a usable
+second OS with a root filesystem.
 
 ## Fast feedback loop available
 

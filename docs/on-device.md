@@ -11,47 +11,37 @@ components only, and you just install the result.
 
 - `kloader` — the open-source on-device loader (boots a prepared bootchain out
   of the running iOS; no USB).
-- `/usr/bin/thr0wback` — the launcher (`thr0wback list` / `thr0wback boot 4.0`).
+- `/usr/bin/thr0wback` — the launcher (`thr0wback test` / `list` / `boot <target>`).
+- `/usr/share/thr0wback/selftest.bin` — a 4 KB do-nothing image for `thr0wback test`.
 
 It does **not** contain any Apple firmware. That stays off the public repo for
 copyright reasons; it's supplied per-device, from your own firmware.
 
 ## The honest gap: preparing a target
 
-`thr0wback boot <target>` boots whatever sits at
-`/var/mobile/thr0wback/<target>/kernel.macho` — a single **raw, decompressed**
-kernel (kloader itself refuses IMG3/IM4P files and has no further handoff
-logic; see `docs/kloader-port.md` for why one file is all it needs for the
-jump itself). Producing that file is the decrypt + decompress pipeline already
-in this repo:
+kloader jumps to a **raw bootloader-style image** (a decrypted iBEC/iBSS, first
+word `0xea00000e`), not to a kernel Mach-O; see `docs/test-results.md`.
+`thr0wback boot <target>` still looks for `<target>/kernel.macho`. That is the
+earlier, wrong assumption and is queued to change to a decrypted `ibec.bin`.
+Until then, use `thr0wback test`, which needs no Apple files.
 
-```
-scripts/img3.py decrypt <target-version-kernelcache.img3> --key ... --iv ... -o complzss.bin
-scripts/lzss.py decompress complzss.bin -o kernel.macho
-```
-then drop `kernel.macho` into `/var/mobile/thr0wback/<target>/` on the phone.
-Either on-device (if these get ported to run under the phone's own Python/shell)
-or prepped elsewhere and copied over — either way it comes from **your**
-firmware, not the repo.
+Whatever the image is, it comes from **your** firmware, never the repo: decrypt
+with `scripts/img3.py` (keys from ipsw.me), keep it raw (not IMG3), and put it
+in `/var/mobile/thr0wback/<target>/` on the phone.
 
-**Getting a kernel to jump is not the same as getting a second OS to boot.**
-See "The one real gap" in `docs/kloader-port.md` — the realistic first
-milestone is proving the jump itself (even just a panic banner from the other
-version's kernel is a real result), not a fully usable second OS on the first
-try.
+**Getting code to run is not the same as getting a second OS to boot.** See
+"The one real gap" in `docs/kloader-port.md`.
 
-## First test milestones
+## Test milestones
 
-1. Install the `.deb` (Cydia / Filza / `dpkg -i`).
-2. **tfp0 sanity check first** — put *any* placeholder file at
-   `/var/mobile/thr0wback/test/kernel.macho` and run `thr0wback boot test`.
-   Watch for `kernel_base: 0x...` printing before it fails on bad content —
-   that confirms `task_for_pid(0)` works under this jailbreak at all, which is
-   the one precondition everything else depends on.
-3. Once that's confirmed, prepare a real **4.0** `kernel.macho` and
-   `thr0wback boot 4.0`. See what lands on screen.
-4. Only after a jump is confirmed working does the harder "mount a matching
-   root filesystem" question become worth chasing.
+1. ✅ Install the `.deb` through Cydia (members must be gzip; see
+   `docs/test-results.md`).
+2. ✅ `kloader /var/mobile/nothing` printed `kernel_base: 0x80000000`, so
+   `task_for_pid(0)` works under this jailbreak.
+3. ✅ `thr0wback test` hooked the wake path (`larm_init_tramp: 0x80065008`) and
+   the phone ran our 4 KB image (stuck black until Power+Home).
+4. Next: a real decrypted iBEC through kloader, then the root-filesystem
+   question.
 
-If a boot hangs, hold **Power+Home** to return to your normal iOS. Nothing is
-written to the active system.
+If the phone hangs, hold **Power+Home**. Restart after every run, because the
+hook stays in RAM until a reboot. Nothing is written to the active system.
