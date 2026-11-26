@@ -51,34 +51,12 @@ jobs:
           cp /tmp/kexec-utils/kloader packaging/deb/usr/bin/kloader
           chmod 0755 packaging/deb/usr/bin/kloader packaging/deb/usr/bin/thr0wback
 
-          # Manual .deb creation for iOS 4.1 compatibility.
-          # Old dpkg (from ~2010) doesn't understand modern dpkg-deb format.
-          # Build as a simple ar archive: debian-binary + control.tar.gz + data.tar.gz
+          # iOS 4's dpkg only reads gzip members; Ubuntu's dpkg-deb defaults to zstd.
+          dpkg-deb -Zgzip -z9 --root-owner-group --build packaging/deb thr0wback.deb
 
-          mkdir -p /tmp/deb-build
-          cd /tmp/deb-build
-
-          # 1. debian-binary (version marker for old dpkg)
-          echo -n "2.0" > debian-binary
-
-          # 2. control.tar (control metadata, uncompressed for maximum compatibility)
-          tar -C "$GITHUB_WORKSPACE/packaging/deb" -cf control.tar DEBIAN/
-          gzip -9 control.tar
-
-          # 3. data.tar (actual file contents)
-          tar -C "$GITHUB_WORKSPACE/packaging/deb" -cf data.tar usr/
-          gzip -9 data.tar
-
-          # 4. Assemble as ar archive (Debian package format)
-          # Old ar/dpkg expects this exact order
-          ar r thr0wback.deb debian-binary control.tar.gz data.tar.gz
-
-          # Verify
-          ar t thr0wback.deb
-          file thr0wback.deb
-
-          # Copy to repo root
-          cp thr0wback.deb "$GITHUB_WORKSPACE/thr0wback.deb"
+          [ "$(ar t thr0wback.deb | tr '\n' ' ')" = "debian-binary control.tar.gz data.tar.gz " ]
+          dpkg-deb --info thr0wback.deb
+          dpkg-deb --contents thr0wback.deb
 
       - name: Upload .deb
         if: always()

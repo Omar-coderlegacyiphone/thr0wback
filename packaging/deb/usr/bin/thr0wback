@@ -28,7 +28,7 @@ KLOADER="$(command -v kloader || echo /usr/bin/kloader)"
 
 die() { echo "thr0wback: $*" >&2; exit 1; }
 
-[ "$(id -u)" = "0" ] || die "run as root (su / sudo)."
+[ "$EUID" -eq 0 ] || die "run as root (su / sudo)."
 [ -x "$KLOADER" ] || die "kloader not found. Reinstall the package."
 
 case "${1:-}" in
@@ -42,11 +42,12 @@ case "${1:-}" in
     [ -d "$DIR" ] || die "no such target: ${TARGET} (try: thr0wback list)"
     KERNEL="${DIR}/kernel.macho"
     [ -f "$KERNEL" ] || die "missing ${KERNEL} — target not fully prepared."
-    MAGIC="$(od -An -tx1 -N4 "$KERNEL" | tr -d ' \n')"
-    [ "$MAGIC" != "33676d49" ] || die "${KERNEL} is still IMG3-wrapped — decrypt with img3.py and decompress with lzss.py first."
+    MAGIC=""
+    IFS= read -r -n 4 MAGIC < "$KERNEL" || true
+    [ "$MAGIC" != "3gmI" ] || die "${KERNEL} is still IMG3-wrapped — decrypt with img3.py and decompress with lzss.py first."
     echo "thr0wback: booting ${TARGET} via kloader..."
     echo "  (screen will go black, then the second OS boots; reboot to return)"
-    sync
+    sync 2>/dev/null || true
     exec "$KLOADER" "$KERNEL"
     ;;
   *)
