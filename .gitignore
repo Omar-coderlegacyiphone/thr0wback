@@ -1,0 +1,21 @@
+# Downloaded firmware and anything derived from it — never commit these.
+/firmware/
+/work/
+/out/
+*.ipsw
+*.dmg
+
+# Host-built toolchain.
+/tools/bin/
+/tools/build/
+
+# Decrypted / patched images.
+*.decrypted
+*.patched
+*.img3
+*.img4
+
+# Scratch.
+*.log
+*~
+.DS_Store

@@ -1,0 +1,45 @@
+{
+  "host_device": {
+    "name": "iPhone 4 (GSM)",
+    "identifier": "iPhone3,1",
+    "soc": "Apple A4 (s5l8930x)",
+    "bootrom_exploit": "limera1n",
+    "image_format": "IMG3",
+    "notes": "The user's device. Currently on iOS 4.1, downgraded untethered with Legacy iOS Kit (likely powdersn0w-based). On-NAND bootloaders must NOT be overwritten or the untethered 4.1 boot breaks."
+  },
+  "firmware_targets": [
+    {
+      "role": "baseline",
+      "status": "supported",
+      "device": "iPhone3,1",
+      "ios_version": "4.0",
+      "build": "8A293",
+      "purpose": "First iOS with iPhone 4 support. Proves the build + tethered-boot pipeline end to end before any hybrid work.",
+      "boot_method": "tethered (limera1n / loaded from host over USB)"
+    },
+    {
+      "role": "hybrid-donor-bootchain",
+      "status": "supported",
+      "device": "iPhone3,1",
+      "ios_version": "4.0",
+      "build": "8A293",
+      "purpose": "Source of the real iPhone 4 bootchain for the hybrid: LLB, iBoot, iBSS, iBEC, DeviceTree, kernelcache. These know the A4 hardware.",
+      "boot_method": "n/a (donor only)"
+    },
+    {
+      "role": "hybrid-donor-userland",
+      "status": "experimental",
+      "device": "iPhone2,1",
+      "ios_version": "3.1.3",
+      "build": "7E18",
+      "purpose": "Source of the iOS 3 userland (SpringBoard, apps, frameworks) laid on top of the iPhone 4 bootchain. Closest iOS 3 build to the 4.0 kernel, so best odds of booting.",
+      "boot_method": "tethered (experimental)"
+    }
+  ],
+  "hard_limits": {
+    "floor": "iOS 4.0 is the lowest version with native iPhone 4 support. Anything below it (3.x) has no bootloaders, kernel or drivers for this hardware and can only ever be attempted as a hybrid.",
+    "ceiling": "iOS 7.1.2 is the last version Apple released for iPhone 4.",
+    "baseband": "The baseband (modem) firmware is never flashed or modified. It is not part of any build or boot step here.",
+    "on_nand_bootloaders": "The experimental OS boots from host RAM over USB. The phone's on-NAND LLB/iBoot are never rewritten, so the untethered 4.1 install stays intact."
+  }
+}
