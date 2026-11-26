@@ -6,6 +6,7 @@
 # kloader. Nothing is written to the active system; a reboot returns to your
 # normal iOS.
 #
+#   thr0wback test                 # self-test: jump to a tiny do-nothing program
 #   thr0wback list                 # show prepared targets
 #   thr0wback boot <target>        # kloader-boot a target (e.g. 4.0)
 #
@@ -32,6 +33,18 @@ die() { echo "thr0wback: $*" >&2; exit 1; }
 [ -x "$KLOADER" ] || die "kloader not found. Reinstall the package."
 
 case "${1:-}" in
+  test)
+    # Needs no Apple files. Phone back to normal = jump did NOT happen;
+    # phone frozen/black = the jump worked (hold Power+Home to restart).
+    SELFTEST="/usr/share/thr0wback/selftest.bin"
+    [ -f "$SELFTEST" ] || die "missing ${SELFTEST} — reinstall the package."
+    echo "thr0wback test: jumping to a tiny do-nothing program (no second iOS)."
+    echo "  Phone comes back to normal iOS  -> the jump did NOT happen."
+    echo "  Phone stays black or frozen     -> the jump WORKED."
+    echo "  Either way, hold Power+Home ~10s afterwards to restart."
+    sync 2>/dev/null || true
+    exec "$KLOADER" "$SELFTEST"
+    ;;
   list)
     echo "Prepared targets in ${ROOT}:"
     [ -d "$ROOT" ] && ls -1 "$ROOT" 2>/dev/null || echo "  (none yet)"
@@ -51,5 +64,5 @@ case "${1:-}" in
     exec "$KLOADER" "$KERNEL"
     ;;
   *)
-    echo "usage: thr0wback {list | boot <target>}"; exit 1 ;;
+    echo "usage: thr0wback {test | list | boot <target>}"; exit 1 ;;
 esac
