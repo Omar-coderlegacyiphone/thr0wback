@@ -291,6 +291,51 @@ fetch+decrypt script writes itself around those tools. If nothing suitable
 is there, `busybox` (a single, common, unprivileged Cydia package, not a
 security tool) would add most of them at once.
 
+## Phone-only fetch+decrypt: tested in this sandbox, mixed result
+
+The owner's phone (`thr0wback info`, 0.1.8) has: `openssl unzip funzip gzip
+zcat bzip2` — but **no `curl` or `wget`**: something to decrypt/unpack, but
+nothing to download with.
+
+**The decrypt half is solved and proven, using only those tools.** Built and
+tested in this sandbox, entirely in POSIX shell + `dd`/`od`/`openssl` (no
+Python): reading the exact IMG3 `DATA` tag by hand (offset/length parsed byte
+by byte, same style as `thr0wback disk`'s GPT reader) and piping it through
+`openssl enc -d -aes-256-cbc -nopad`. Result is **byte-identical** (same
+SHA-256) to the iBEC this repo already decrypted with `img3.py` months ago.
+Also proved: `funzip`, fed only a `{local file header}{compressed bytes}`
+slice (no central directory, no whole-archive needed), decompresses a single
+IPSW zip entry correctly — also byte-identical to `unzip -p`'s output. So
+pulling one ~120 KB file out of a 600 MB IPSW, decompressing it, and
+decrypting it needs no Python and no full download, just a correct byte
+range.
+
+**The download half is not solved.** With no `curl`/`wget`, I tried using
+`openssl s_client` itself as a raw HTTPS client (handwritten HTTP/1.1
+request, strip headers from the response). Tested against a local HTTPS test
+server:
+- A full-file transfer (≈600 MB) came back **byte-corrupted partway through**
+  (diverged at byte ~54M of ~182M received before timing out) — `s_client`
+  piped this way isn't reliable at that scale.
+- A **range request** (the ~125 KB we'd actually need) avoids the scale
+  problem, but my only local test server (`openssl s_server -WWW`) doesn't
+  honor `Range` at all, so I could not verify real partial-content handling
+  against anything resembling Apple's actual CDN. (This sandbox's outbound
+  network goes through a proxy that blocks the raw TCP connect a real
+  `s_client` test against Apple's servers would need, so that couldn't be
+  tested directly either.)
+
+Given a real, measured corruption failure on one path and an unverifiable
+gap on the other, **I'm not shipping this as the download step.** The clean
+fix: install `curl` via Cydia (BigBoss, Cydia's default repo, has shipped it
+for exactly this device era — `apt-get install curl`). Ordinary network
+tool, not a security-relevant install. One documented catch: Cydia's curl
+build has sometimes lacked a default CA bundle, so HTTPS may need `-k` or an
+explicit `--cacert`.
+
+Once `curl` (or any reliable fetcher) is confirmed present, the decrypt half
+above is ready to wire in as-is — that part doesn't need re-proving.
+
 ## Sources
 
 - https://github.com/Zurac-Apps/4tify
@@ -306,5 +351,6 @@ security tool) would add most of them at once.
 - https://github.com/axi0mX/ios-kexec-utils
 - https://papers.put.as/papers/ios/2012/iH8sn0w-Jailbreakcon2012.pdf (iOS 4 vs 5 signing era)
 - https://ipsw.me/install/iPhone3,1/8B117/ (current signing status, checked)
+- https://gist.github.com/2353599 (curl via Cydia/apt-get, CA-bundle caveat)
 - https://theapplewiki.com/wiki/LwVM (summary only)
 - https://es.slideshare.net/seguridadapple/iphone-data-protection-in-depth (summary only)
