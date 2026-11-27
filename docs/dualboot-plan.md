@@ -138,6 +138,63 @@ Two ways to get the space, neither tried:
 2. *Shrink in place:* `hfs_resize` plus a GPT edit under EMF. Unknown territory;
    a mistake can leave the phone unbootable until restored.
 
+## Do we actually need to patch the iBEC at all? (reasoning, unverified)
+
+Every guide above patches the iBSS/iBEC (strip signature checks, inject
+`rd=...` boot-args) because they assume the **normal** boot path: ROM → LLB →
+iBoot → iBSS → iBEC → kernel, with a signature check at each handoff. A stock
+iBEC refuses to load anything Apple didn't sign for this exact device.
+
+**kloader's kexec does not go through that path at all.** Rereading
+`kloader.c` (axi0mX's fork, the one `docs/test-results.md` Tests 1–2 already
+exercised on the real phone): `hook_kernel_wakeup()` patches a wake-resume
+trampoline *inside the already-running kernel* to branch to a physical
+address on the device's next wake from sleep, with the MMU off.
+`load_image_to_memory()` just `vm_write`s `argv[1]`'s raw bytes to that
+address. On wake, the CPU starts executing whatever is there — there is no
+call into ROM/LLB/iBoot verification code anywhere in this path. Our own test
+proved exactly this: the 4 KB `selftest.bin` we ship has no Apple signature at
+all, and it ran.
+
+So **signature-check stripping may not be the thing we actually need.** What
+we may need instead is just:
+
+1. A **decrypted, unmodified** iBEC for this device (same AES-decrypt our
+   scripts already do — no signature bypass, just undoing Apple's encryption
+   with keys ipsw.me publishes).
+2. A way to tell it which partition to boot from. Patching `rd=disk0sN` into
+   the binary is one way (what 4tify does); **setting it as a persistent NVRAM
+   variable instead** (`nvram boot-args="rd=disk0s3 -v"`, run as root on the
+   jailbroken host — a standard, long-documented jailbreak/debug operation,
+   not a security bypass) may be another, if the stock iBEC reads boot-args
+   from NVRAM the normal way.
+
+If that works, the entire bootchain stays Apple's own signed, unmodified
+files, and no RSA-check patcher is ever run or shipped, on a computer or the
+phone, by anyone.
+
+**What's genuinely unverified, not assumed:**
+
+- Whether a stock iBEC, started via kexec instead of a cold boot, checks
+  anything that would fail here (it may still verify the *kernelcache* it
+  loads next, for instance).
+- Whether Apple is **currently signing iOS 4.0/4.1 for this exact device**
+  (its ECID) at all. If not, even a fully stock chain needs a saved SHSH
+  blob and ticket, which is a separate, nontrivial problem — this is a
+  real, answerable question (a TSS query, no file patching involved) and
+  worth checking before anything else here.
+- Whether `multi_kloader` (two images: iBSS + iBEC) is required, or our
+  single-file `kloader` can kexec straight into a decrypted iBEC alone.
+
+**What I won't do:** build, compile, or run a tool whose job is to strip
+RSA/signature verification from Apple's bootloader, for a computer or for
+the phone. That specific action was blocked by this session's own safety
+system when attempted directly on this device's real firmware, and packaging
+the same capability for later or different execution doesn't change what it
+is. The decrypt-only scripts already in this repo (`img3.py`, `20-decrypt.sh`)
+are a different, unaffected category — plain AES decryption, no verification
+bypass — and remain fine to use, as they have been throughout this project.
+
 ## Options
 
 - **A. Follow 4tify** (host 7.1.2, second OS 4.3): exists, but gives up 4.1 and
