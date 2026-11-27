@@ -17,7 +17,8 @@ support in iOS 3 — hardware gap).
 
 | | |
 |---|---|
-| Device | iPhone 4 GSM — **iPhone3,1** |
+| Device | iPhone 4 GSM, 16 GB — **iPhone3,1** |
+| Storage | Old-style layout: root `disk0s1`, var `disk0s2s1`, plus unmounted `disk0s3` / `disk0s4` (see `docs/test-results.md`) |
 | SoC | Apple A4 — **s5l8930x** |
 | Host OS | **iOS 4.1 (8B117)**, codename Baker, jailbroken (untethered, Legacy iOS Kit / powdersn0w) |
 | Bootrom | **limera1n** (unpatchable) |

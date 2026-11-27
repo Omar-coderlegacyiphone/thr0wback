@@ -8,6 +8,7 @@
 #
 #   thr0wback test                 # self-test: jump to a tiny do-nothing program
 #   thr0wback info                 # read-only: show how the phone's storage is laid out
+#   thr0wback disk                 # read-only: partition table, free space, what disk0s3/s4 hold
 #   thr0wback list                 # show prepared targets
 #   thr0wback boot <target>        # kloader-boot a target's iBEC (e.g. 4.0)
 #
@@ -72,6 +73,34 @@ case "${1:-}" in
     done
     echo " ${TOOLS:- (none)}"
     ;;
+  disk)
+    # Read-only: changes nothing. Reads the partition table and 2 bytes per slice.
+    echo "thr0wback disk (read-only):"
+    echo "-- free space (1K blocks):"
+    df -k / /private/var 2>/dev/null | while IFS= read -r LINE; do echo "  $LINE"; done
+    echo "-- partition table (fdisk):"
+    if command -v fdisk >/dev/null 2>&1; then
+      fdisk /dev/rdisk0 </dev/null 2>&1 | while IFS= read -r LINE; do echo "  $LINE"; done
+    else
+      echo "  (fdisk not found)"
+    fi
+    echo "-- are disk0s3 / disk0s4 formatted?"
+    for N in 3 4; do
+      D="/dev/disk0s$N"
+      if [ -e "$D" ]; then
+        SIG=""
+        IFS= read -r -n 2 SIG < <(dd if="$D" bs=1024 skip=1 count=1 2>/dev/null) || true
+        case "$SIG" in
+          "H+") KIND="HFS+ volume" ;;
+          "HX") KIND="HFSX volume" ;;
+          *) KIND="not HFS (empty or other)" ;;
+        esac
+        echo "  $D: $KIND"
+      else
+        echo "  $D: not present"
+      fi
+    done
+    ;;
   list)
     echo "Prepared targets in ${ROOT}:"
     [ -d "$ROOT" ] && ls -1 "$ROOT" 2>/dev/null || echo "  (none yet)"
@@ -91,5 +120,5 @@ case "${1:-}" in
     exec "$KLOADER" "$IMAGE"
     ;;
   *)
-    echo "usage: thr0wback {test | info | list | boot <target>}"; exit 1 ;;
+    echo "usage: thr0wback {test | info | disk | list | boot <target>}"; exit 1 ;;
 esac

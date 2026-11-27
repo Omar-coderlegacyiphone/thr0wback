@@ -51,6 +51,24 @@ version. Not yet established: how reliable the 2-second auto-wake is on its own
 (run 1 missed, runs 2 and 3 hit; too few runs to call it reliable, and the
 reason for the miss is unknown).
 
+## Test 3: storage layout (`thr0wback info`, 0.1.3, read-only)
+
+Phone: iPhone 4 GSM, 16 GB (iPhone3,1), kernel 10.3.1 (iOS 4.1).
+
+- Mounted: `/dev/disk0s1` on `/` (hfs, noatime) and `/dev/disk0s2s1` on
+  `/private/var` (hfs, journaled, noatime, protect).
+- Disk names: `disk0 disk0s1 disk0s2 disk0s2s1 disk0s3 disk0s4`.
+- fstab: `/dev/disk0s1 / hfs rw 0 1`, `/dev/disk0s2s1 /private/var hfs rw 0 2`.
+- Tools found: `newfs_hfs fsck_hfs mount_hfs dd fdisk`. Not found: `asr`, `gptfdisk`.
+
+**Conclusions:** the 4.1 layout is the old style (root `disk0s1`, var
+`disk0s2s1`), not the iOS 5+ LwVM names (`disk0s1s1`, `disk0s1s2`). `disk0s3`
+and `disk0s4` already exist and are not mounted; what they hold is unknown
+(4tify's scripts use these same two names for the second OS on its 7.1.2 host).
+The partition and format tools exist on the phone itself. Still unknown: slice
+sizes, the table type (`fdisk` is present, so probably MBR) and free space.
+`thr0wback disk` (0.1.4) reads those.
+
 ## Corrected understanding
 
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
@@ -66,7 +84,8 @@ See `docs/kloader-port.md`.
 2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3 (untested with a real iBEC).
 3. Auto-wake reliability: repeat runs. The 2.0 s delay is a compile-time constant.
 4. Root filesystem / second-OS storage (the big one).
-5. Run `thr0wback info` on the phone and paste its output here (iOS 4.1 disk layout).
+5. ~~Run `thr0wback info`~~ Done, see Test 3. Next: `thr0wback disk` (0.1.4) for
+   slice sizes, free space and what `disk0s3` / `disk0s4` hold.
 
 ## Safety notes
 

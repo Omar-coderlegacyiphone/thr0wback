@@ -66,6 +66,13 @@ image, not a kernel.
 5. **The partition step can lose data or stop iOS 4.1 booting.** Recovery means
    restoring from a computer.
 
+## What the phone showed (`thr0wback info`, 0.1.3)
+
+iPhone 4 GSM 16 GB on iOS 4.1: root is `disk0s1`, var is `disk0s2s1` (old-style
+names, not LwVM). `disk0s3` and `disk0s4` already exist, unmounted, contents
+unknown. `fdisk`, `newfs_hfs`, `mount_hfs`, `fsck_hfs` and `dd` are on the
+phone; `asr` is not. Details: `docs/test-results.md`.
+
 ## Options
 
 - **A. Follow 4tify** (host 7.1.2, second OS 4.3): exists, but gives up 4.1 and
@@ -77,7 +84,7 @@ image, not a kernel.
 
 ## Before any partition step
 
-- The output of `thr0wback info` from the phone, so the 4.1 layout is known.
+- The output of `thr0wback info` and `thr0wback disk` from the phone, so the 4.1 layout is known.
 - Computer with the ramdisk tooling, and a tested way to restore 4.1.
 - Full battery, and a backup of anything on the phone (it may be wiped).
 - A spare iPhone 4 to rehearse on, if at all possible.
@@ -85,8 +92,8 @@ image, not a kernel.
 
 ## Open questions
 
-- What partition table does iOS 4.1 use, and what do `disk0s1` / `disk0s2` hold?
-  (`thr0wback info`, 0.1.3, is read-only and should show this. Paste its output here.)
+- Slice sizes, free space and the table type (`thr0wback disk`, 0.1.4, is read-only).
+- What do `disk0s3` and `disk0s4` hold? Empty, or left over from something?
 - Can a patched iBEC started by kloader boot from a second partition on a 4.1 host?
 - What do `boot.sh` and the 4tify app do?
 - What does `TwistedMind2` write?
