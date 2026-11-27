@@ -79,6 +79,45 @@ builds on its 7.1.2 host. The GPT (read by `thr0wback disk`, Test 5) is: System 
 free inside Data. So a second OS means shrinking the Data slice. Details:
 `docs/test-results.md`.
 
+## Shrinking the Data slice (research, mostly second-hand)
+
+Why: the disk is fully allocated (Test 5), so a second OS's slices have to come
+out of Data, which has 12224 MB free inside.
+
+- **iOS 5/6 guides** (nyansatan; search summaries only, the pages are blocked
+  from this session): shrink the HFS filesystem inside Data with `hfs_resize`
+  (by danzatt, syntax `mount_point new_size`), then edit the partition table to
+  carve new slices from the freed space. Sizes are bytes divided by the block
+  size (their example uses 8192, which matches this phone). Leave at least 400
+  to 500 MB free in the first Data volume; second Data about 1 GB or more for
+  iOS 6. The author says to rehearse on a phone you can afford to lose, such as
+  an iPhone 4. The Apple Wiki's LwVM page reportedly says iOS's own update
+  process does the same.
+- **iOS 4: no guide found.** This phone's Data slice is typed "EMF", and a
+  forensics slide deck (Sogeti, summary only) says iOS 4's raw data partition
+  can't be read with standard tools, so it is probably encrypted at block level.
+  Nothing I found says how `hfs_resize` or a table edit behaves under that.
+  Whether `hfs_resize` exists on the phone was not checked (`thr0wback info`
+  doesn't list it).
+- **4tify avoids the problem by wiping first.** `Create-Restore.sh` and
+  `Restore.sh` restore a fresh custom iOS 7.1.2 (as far as the scripts show,
+  only the DeviceTree is changed in the IPSW). The prebuilt `TwistedMind2` is
+  then run with `-d1 3221225472 -s2 879124480 -d2 max` (3 GiB, about 838 MiB,
+  and "max"; what each flag means is not stated), so presumably the
+  partitioning happens on a nearly empty phone. TwistedMind2 isn't documented
+  anywhere I could reach, so what it really does is unknown.
+- **Also seen:** `Restore.sh` runs `sshtool -k kloader -b pwnediBSS`, i.e. kloader
+  starting a pwned iBSS on an iPhone 4 from a running jailbroken system. That is
+  the same trick our tests show works on 4.1.
+
+Two ways to get the space, neither tried:
+
+1. *Wipe and redo:* restore the phone fresh with Legacy iOS Kit (how it got 4.1),
+   then partition while Data is almost empty. Loses what is on the phone; needs
+   a computer.
+2. *Shrink in place:* `hfs_resize` plus a GPT edit under EMF. Unknown territory;
+   a mistake can leave the phone unbootable until restored.
+
 ## Options
 
 - **A. Follow 4tify** (host 7.1.2, second OS 4.3): exists, but gives up 4.1 and
@@ -119,3 +158,7 @@ treat anything from them as unverified.
 - https://nyansatan.github.io/dualboot/partitioning.html (summary only)
 - https://www.theiphonewiki.com/wiki/Kloader (summary only)
 - https://www.theiphonewiki.com/wiki/CoolBooter (summary only)
+- https://raw.githubusercontent.com/Zurac-Apps/4tify/master/Create-Restore.sh
+- https://raw.githubusercontent.com/Zurac-Apps/4tify/master/Restore.sh
+- https://theapplewiki.com/wiki/LwVM (summary only)
+- https://es.slideshare.net/seguridadapple/iphone-data-protection-in-depth (summary only)
