@@ -263,6 +263,55 @@ and the `theiphonewiki.com` pages could not be opened from this session
 (blocked by its network settings). Only search-result summaries were seen, so
 treat anything from them as unverified.
 
+## `thr0wback fetch`'s curl is a dead end — the phone's TLS is too old, full stop
+
+On the owner's real phone, `thr0wback fetch` (0.1.9) failed:
+`curl: (35) error:1407742E:SSL routines:SSL23_GET_SERVER HELLO:tlsv1 alert
+protocol version`. Forcing `--tlsv1` (0.1.10) changed the error but didn't fix
+it: `error:1409442E:SSL routines:SSL3 READ BYTES:tlsv1 alert protocol
+version` — getting further into the handshake, still rejected.
+
+`curl --version` / `openssl version` on the phone: **curl 7.33.0, libcurl
+linked directly against OpenSSL 0.9.8zg (11 Jun 2015)**. This is not a config
+issue: **OpenSSL's 0.9.8 branch never implemented TLS 1.1 or 1.2 at all** —
+the protocol code isn't in the library, so no flag can add it. `--tlsv1` was
+already asking for the most this exact binary can do. A web search confirms
+curl 7.33.0-9 / OpenSSL 0.9.8zg-13 is the last version either package ever
+reached in the classic Cydia/Telesphoreo repo — there is no newer `curl` to
+install for this platform. **This specific tool cannot be fixed.**
+
+Visiting the same Apple URL in Safari gave "Access Denied" — initially read
+(wrongly) as an unrelated anti-hotlinking block; more likely the same root
+cause, since iOS 4.1's own system TLS dates from the same era and may have
+the identical ceiling. Unconfirmed, but the simpler, more consistent
+explanation given curl's now-confirmed hard limit.
+
+**Next real candidate: TLSFix** (`github.com/ObscureMosquito/TLSFix` /
+`nfzerox/TLSFix` — forked/renamed, same project; "Modern HTTPS for legacy
+iPhone, iPad, and iPod touch running iOS 3 to iOS 9"). Per its README
+(second-hand, only the GitHub README read): it's a MobileSubstrate tweak that
+hooks **Apple's Secure Transport API** per-process and reroutes those calls
+through a bundled **OpenSSL 1.1.1**, needs a separate modern root-certificate
+bundle (`tlsroot.litten.ca`), and says to reboot after installing. Cydia
+repos listed: `cydia.skyglow.es` or `nfzerox.github.io/cydia`.
+
+**This would not have fixed `curl`** — confirmed, not just theoretical:
+`curl --version` shows it's linked directly against its own OpenSSL, never
+calling Secure Transport, so TLSFix's hook has nothing to intercept there.
+It's a candidate for **Safari** specifically (and other apps using the
+system's own networking), not for the standalone curl binary.
+
+**Unverified:** whether TLSFix actually fixes Safari's connection on this
+exact device (untested); whether old iOS 4-era Safari can even save an
+arbitrary downloaded file once the connection works — historically it
+could not without a tweak ("Safari Download Manager" / "Safari Download
+Enabler", from BigBoss, works with iFile or a cloud service) built for
+exactly that gap. If Safari does download it, it would be the **full ~600 MB
+IPSW** (no Range control via browser UI), not the small slice `fetch` tries —
+a new target-preparation path (`unzip -p` on an already-downloaded local
+file, not a curl fetch) would be needed; the decrypt half of that is already
+proven (see above).
+
 ## Getting a stock decrypted file onto the phone, with no computer
 
 The project has always deliberately kept Apple's firmware out of the public
