@@ -173,18 +173,52 @@ If that works, the entire bootchain stays Apple's own signed, unmodified
 files, and no RSA-check patcher is ever run or shipped, on a computer or the
 phone, by anyone.
 
-**What's genuinely unverified, not assumed:**
+**Update: iOS 4 predates Apple's current per-device signing system — this
+probably matters a lot, and probably helps.** (Web search, sources below;
+second-hand, not independently confirmed against primary Apple docs.)
 
-- Whether a stock iBEC, started via kexec instead of a cold boot, checks
-  anything that would fail here (it may still verify the *kernelcache* it
-  loads next, for instance).
-- Whether Apple is **currently signing iOS 4.0/4.1 for this exact device**
-  (its ECID) at all. If not, even a fully stock chain needs a saved SHSH
-  blob and ticket, which is a separate, nontrivial problem — this is a
-  real, answerable question (a TSS query, no file patching involved) and
-  worth checking before anything else here.
+- Apple's "every boot re-checks a device-personalized, nonce-based ticket"
+  system (**APTicket**) started with **iOS 5** in 2011. For **iOS 4** and
+  earlier, the per-device check ("SHSH blob") was **static** — the same
+  blob for a given device + iOS version combination every time, not tied to
+  a fresh random nonce. A 2012 jailbreak-community talk puts it plainly for
+  this era: *"Only LLB & iBSS are SHSH signed"* — i.e. the device-specific
+  check happens when loading **LLB and iBSS**, not at every later stage.
+  (iH8sn0w, Jailbreakcon 2012 slides, via papers.put.as.)
+- That's consistent with what we already found in `iBoot32Patcher`'s own
+  source: it unconditionally runs `patch_rsa_check()` on every image
+  ("All loaders have the RSA check" — its own comment), which reads as a
+  **built-in, non-personalized** Apple-key signature check baked into the
+  loader's code, separate from the device-specific SHSH/ticket system. For
+  our use this matters because: **our phone is already past LLB/iBSS** (it's
+  a running, booted OS) before kloader ever runs, so whichever check(s) only
+  apply at that earlier stage don't apply to us at all.
+- **What I checked directly:** ipsw.me currently shows iOS 4.1 (8B117) for
+  iPhone3,1 as **"✗ This firmware is not signed"** — meaning Apple's live
+  servers won't issue a new restore ticket for it today. But per the above,
+  that live-signing-server gate is specifically the **iOS 5+ mechanism**;
+  whether it has any bearing on a **static-era iOS 4.x file's own, baked-in**
+  RSA check (not a live ticket check) is the open question just below. If
+  the iOS 4.x-era check really is non-personalized, Apple's current signing
+  status for 8B117/8A293 may be irrelevant to us — we're not doing a live
+  restore, just decrypting a file we already hold and handing its bytes to
+  kloader.
+
+**What's still genuinely unverified, not assumed:**
+
+- Whether a stock iBEC, started via kexec instead of a cold boot, still runs
+  its own internal RSA check on the *kernelcache* it loads next (plausible,
+  per `patch_rsa_check()` above), and whether that check is the
+  non-personalized iOS-4-era kind or something stricter.
 - Whether `multi_kloader` (two images: iBSS + iBEC) is required, or our
   single-file `kloader` can kexec straight into a decrypted iBEC alone.
+- The only way to actually answer these is to try it: kexec a fully stock,
+  decrypted (not patched) iBEC via `thr0wback boot` and see what happens.
+  We already have one sitting in this repo's `work/iPhone3,1_8A293/dec/`
+  from earlier project work (iBoot-889.24, decrypted months ago, never
+  patched). This needs no storage/partition step first — a bare kexec jump
+  into a stock file is itself the next real test, phone-only, once the
+  file is on the phone.
 
 **What I won't do:** build, compile, or run a tool whose job is to strip
 RSA/signature verification from Apple's bootloader, for a computer or for
@@ -229,6 +263,34 @@ and the `theiphonewiki.com` pages could not be opened from this session
 (blocked by its network settings). Only search-result summaries were seen, so
 treat anything from them as unverified.
 
+## Getting a stock decrypted file onto the phone, with no computer
+
+The project has always deliberately kept Apple's firmware out of the public
+`.deb`/repo (see `build-deb.yml`'s own comment) — that's a copyright line we
+shouldn't cross by bundling a decrypted Apple file into the public package
+either. So a phone-only path means the **phone itself** fetches and decrypts
+its own copy, the same way `scripts/10-fetch-ipsw.sh` + `scripts/img3.py`
+already do on a computer: download from Apple's CDN, decrypt with the
+published per-build AES key (ipsw.me's keys API) via `openssl enc`. Nothing
+here is different in kind from what those scripts already do — same keys,
+same operation, just run from a different machine.
+
+The one snag: the file sits inside the IPSW's zip archive, compressed, and
+downloading the whole IPSW (100+ MB) just for one 120 KB file is wasteful —
+our host scripts use a partial-zip-read trick (fetch the small bits of the
+zip structure needed, then range-fetch just the one entry). Reimplementing
+that on-device needs *something* that can inflate a raw deflate stream
+(`unzip`/`funzip`, `python3`'s `zlib`, or similar) — plain shell/dd alone
+can't decompress.
+
+**0.1.8 added a check for this to `thr0wback info`** (read-only): it reports
+whether `curl`/`wget`, `openssl`, and a zip/deflate-capable tool
+(`unzip`/`funzip`/`gzip`/`zcat`/`python3`/`python`/`perl`/`busybox`) are on
+the phone already. Once we know what's there, the exact on-device
+fetch+decrypt script writes itself around those tools. If nothing suitable
+is there, `busybox` (a single, common, unprivileged Cydia package, not a
+security tool) would add most of them at once.
+
 ## Sources
 
 - https://github.com/Zurac-Apps/4tify
@@ -242,5 +304,7 @@ treat anything from them as unverified.
 - https://raw.githubusercontent.com/Zurac-Apps/4tify/master/support_files/4.3/Patches/fstab
 - https://github.com/Zurac-Apps/4tify-iPad2
 - https://github.com/axi0mX/ios-kexec-utils
+- https://papers.put.as/papers/ios/2012/iH8sn0w-Jailbreakcon2012.pdf (iOS 4 vs 5 signing era)
+- https://ipsw.me/install/iPhone3,1/8B117/ (current signing status, checked)
 - https://theapplewiki.com/wiki/LwVM (summary only)
 - https://es.slideshare.net/seguridadapple/iphone-data-protection-in-depth (summary only)
