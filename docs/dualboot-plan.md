@@ -255,6 +255,20 @@ bypass — and remain fine to use, as they have been throughout this project.
 - ~~What do `boot.sh` and the 4tify app do?~~ Answered above.
 - How are the patched `iBSS` / `iBEC` made, and where does `multi_kloader` come from? Not in the repo.
 - What does `TwistedMind2` write?
+- ~~Does the LwVM-vs-GPT split ("Addition 3: iOS 4 dualboot") apply to us?~~ No.
+  That guide solves a **newer** (iOS 5+, LwVM) host running iOS 4.x as the
+  second OS — the whole page is about forcing a modern host off LwVM and onto
+  plain GPT so an old-style second OS can coexist, which needs a rejailbreak
+  (redsn0w/Pangu7) because LwVM-vs-GPT changes partition device names. Our
+  host (4.1) and our second OS (4.0, later the iOS 3/4.0 hybrid) are **both
+  already** old-style GPT (Test 4-5) — there's no LwVM on either side, so
+  there's no conflict to work around, and none of that page's steps apply.
+  Bonus: its keybag-version table puts iOS 4.0-4.2.x in one bucket
+  ("Version 1"); our host and target both fall inside it, so we likely also
+  skip the keybag-downgrade dance it describes for mismatched-era pairs. Its
+  iBEC auto-boot patches (`boot-command=upgrade`, `boot-partition`, skip
+  ramdisk) are a nice-to-have for later polish, but run through `ibsspatch` —
+  signature stripping, same category already ruled out below.
 
 ## Not read
 
