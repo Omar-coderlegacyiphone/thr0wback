@@ -154,6 +154,55 @@ not HFS: disk0s1 disk0s2 disk0s2s1 disk0s3 disk0s4
   Test 4's claim that `disk0s3` / `disk0s4` aren't HFS is therefore withdrawn.
   0.1.6 drops that check and shows the GPT type (HFS / EMF) instead.
 
+## Test 6: kexec into a REAL, unmodified Apple iBEC (`thr0wback boot`, first real target)
+
+The owner's phone has no `curl`/`wget` capable of reaching Apple's current server
+(see `docs/dualboot-plan.md` — the phone's only `curl` is permanently stuck on
+OpenSSL 0.9.8, which never implemented TLS 1.1/1.2 at all; no newer build was
+ever released for this platform). The owner got a computer, so the iOS 4.0
+(8A293) iBEC we'd already decrypted (`work/iPhone3,1_8A293/dec/iBEC.bin`,
+`iBoot-889.24`, byte-identical across every method tried this session) was
+sent to them directly and copied onto the phone over SSH/SCP into
+`/var/mobile/thr0wback/4.0-stock/ibec.bin` — no on-device download at all.
+
+`thr0wback boot 4.0-stock`:
+
+- Screen went dark as usual, but this time **stayed solid black for about a
+  minute** — much longer than any `thr0wback test` "miss" (which always
+  returns within ~2 s). A plain miss was ruled out by duration alone.
+- With the phone already connected by USB, the owner's computer (iTunes)
+  identified it as **"iPhone Recovery Mode"** — serial number read correctly,
+  with the normal "Update" / "Restore iPhone" recovery-mode screen appearing
+  **on the computer**. The phone's own screen stayed black throughout (no
+  "connect to iTunes" graphic on-device).
+- Recovered the normal way: Power+Home ~10 s. Came back to normal iOS 4.1
+  cleanly, nothing lost — confirmed by a direct photo of the recovery-mode
+  dialog (not inferred).
+
+**This is the strongest result so far.** "Recovery Mode" is not something a
+screen or a guess can fake — it's the USB device identity the real iBEC's own
+code presents once it reaches its command-loop. For the host OS to show it,
+the **actual, unmodified, Apple-signed decrypted iBEC was executing** after
+the kexec jump — not just "the jump didn't crash," but the real file's own
+logic ran far enough to initialize USB and enter recovery-mode handling. The
+on-device black screen is consistent with the kexec path skipping whatever
+display setup a normal LLB→iBoot→iBSS→iBEC chain would have done first — the
+code runs; it just isn't shown here. Full writeup, including the TLS dead-end
+that led to a computer being used for this delivery, is in
+`docs/dualboot-plan.md`.
+
+**Not yet attempted:** whether the recovery-mode USB channel is actually
+*interactive* at this point — i.e. whether a tool like `irecovery`
+(ipwndfu/libimobiledevice-adjacent) can query or send further commands to it,
+or whether only the initial USB identification works. That's the next test.
+
+**One real safety note from this run:** this is the first point in the whole
+project where a wrong click could cause actual, hard-to-reverse harm — iTunes
+offers "Restore iPhone..." on this exact screen, which (unlike everything
+else here) really does rewrite the phone's storage and could undo the
+jailbreak. Owner did not click it. Worth a clear warning every time this
+screen can appear.
+
 ## Corrected understanding
 
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
@@ -164,9 +213,12 @@ See `docs/kloader-port.md`.
 
 ## Open items
 
-1. Run a real decrypted iBEC (owner's own firmware, never committed) via kloader
-   and observe.
-2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3 (untested with a real iBEC).
+1. ~~Run a real decrypted iBEC via kloader and observe.~~ Done, see Test 6:
+   confirmed Recovery Mode over USB. Next: test whether `irecovery` can
+   actually talk to it (query or send further commands), not just see its
+   USB identity.
+2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3, confirmed working
+   with a real iBEC in Test 6.
 3. Auto-wake reliability: since 0.1.7 `thr0wback test` retries up to 3 times and
    logs every attempt to `/var/mobile/thr0wback/test-log.txt` (uptime at the
    start, and a START with nothing after it means the phone froze). `thr0wback
