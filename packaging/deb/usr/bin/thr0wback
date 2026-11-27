@@ -236,7 +236,11 @@ case "${1:-}" in
 
     echo "thr0wback fetch: downloading ~122 KB from Apple's own server..."
     RANGE_END=$(( RANGE_START + LOCAL_HDR_LEN + COMP_LEN - 1 ))
-    curl -fsSL -r "${RANGE_START}-${RANGE_END}" -o "${TMP}/slice.zip" "$URL" \
+    # --tlsv1 sets a FLOOR (TLS 1.0 or newer), not a pin — a modern curl still
+    # negotiates up to its best version. Old Cydia-era curl builds can fail
+    # Apple's server with a protocol-version alert unless told this explicitly
+    # (seen and fixed on the owner's own phone); this is harmless either way.
+    curl -fsSL --tlsv1 -r "${RANGE_START}-${RANGE_END}" -o "${TMP}/slice.zip" "$URL" \
       || { rm -rf "$TMP"; die "download failed. Check your network connection and try again."; }
     GOT=$(wc -c < "${TMP}/slice.zip")
     [ "$GOT" -eq $((LOCAL_HDR_LEN + COMP_LEN)) ] \

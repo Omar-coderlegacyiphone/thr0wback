@@ -1,6 +1,6 @@
 Package: com.thr0wback.booter
 Name: Thr0wback
-Version: 0.1.9
+Version: 0.1.10
 Architecture: iphoneos-arm
 Description: Boot an older iOS as a second OS on a jailbroken 32-bit iPhone (experimental)
  Phone-only CoolBooter-style loader. Uses kloader to boot a prepared second-OS
