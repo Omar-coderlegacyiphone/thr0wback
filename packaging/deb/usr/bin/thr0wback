@@ -125,6 +125,12 @@ case "${1:-}" in
       if command -v "$T" >/dev/null 2>&1; then TOOLS="$TOOLS $T"; fi
     done
     echo " ${TOOLS:- (none)}"
+    echo "-- fetch/decrypt tools (needed to prepare a target without a computer):"
+    TOOLS=""
+    for T in curl wget openssl unzip funzip gzip zcat bzip2 python3 python python2 perl busybox; do
+      if command -v "$T" >/dev/null 2>&1; then TOOLS="$TOOLS $T"; fi
+    done
+    echo " ${TOOLS:- (none)}"
     ;;
   disk)
     # Read-only: changes nothing. Reads df output and the GPT (partition list) only.
