@@ -20,8 +20,8 @@ cover the storage side below.
 1. A second System partition (normally also a second Data partition) on the NAND.
 2. The second OS's root filesystem restored onto the new System partition.
 3. Patched iBSS/iBEC, plus the matching kernelcache and DeviceTree, so the
-   second OS boots from the new partition instead of the main one. kloader is
-   what starts these.
+   second OS boots from the new partition instead of the main one. kloader (4tify uses its
+   two-image variant, multi_kloader) is what starts these.
 4. Something on the host that launches it.
 
 ## Closest existing project: 4tify
@@ -52,6 +52,26 @@ README plus `Partition.sh`, `Patch-Partition.sh`, `ios4.sh`, `Jailbreak.sh`.
 
 This agrees with our test results: what kloader runs is a patched iBSS/iBEC-style
 image, not a kernel.
+
+## How 4tify actually boots the second OS (second-hand, read from its repo)
+
+- Files placed in `/` on the host: `iBSS.patched`, `iBEC.img3`, `kernelcache`,
+  `devicetree`, `ramdisk`, `applelogo` and `boot.sh`. `boot.sh` is exactly
+  `multi_kloader /iBSS.patched /iBEC.img3`. That is **multi_kloader** (from
+  Nyansatan's "dualbootstuff" package, credited in the 4tify-iPad2 README). It
+  takes **two** images, unlike our single-file `kloader`. No boot-args, kernel or
+  ramdisk appear in the script, so they must be baked into the patched images
+  (which were not read: they are binaries).
+- The second OS's `fstab` is `/dev/disk0s3 / hfs ro 0 1` and
+  `/dev/disk0s4 /private/var hfs rw 0 2`. **Our phone already has slots 3 and 4**
+  (8 MB and under 1 MB, Test 5), so they would have to be resized, not created.
+- The setuid 4tify app (via `runasroot`) runs `/boot.sh`; the screen goes black,
+  the user taps Home, and a verbose boot follows in 10 to 15 s.
+- Not in the repo: how `iBSS.patched` / `iBEC.img3` were made (no tool names or
+  flags), what the `ramdisk` is for, and what `TwistedMind2` writes.
+- The same method is used for iPad 2 on iOS 4.3.x (`4tify-iPad2`), also after a
+  restore to a patched iOS 6.1.3.
+- Nothing found about an iOS 4.1 host, or about an iPhone 4 on 4.1.
 
 ## The catch for this project
 
@@ -141,7 +161,8 @@ Two ways to get the space, neither tried:
   free inside Data.
 - How do you shrink the EMF-typed Data slice on iOS 4.1 safely? No guide found.
 - Can a patched iBEC started by kloader boot from a second partition on a 4.1 host?
-- What do `boot.sh` and the 4tify app do?
+- ~~What do `boot.sh` and the 4tify app do?~~ Answered above.
+- How are the patched `iBSS` / `iBEC` made, and where does `multi_kloader` come from? Not in the repo.
 - What does `TwistedMind2` write?
 
 ## Not read
@@ -160,5 +181,9 @@ treat anything from them as unverified.
 - https://www.theiphonewiki.com/wiki/CoolBooter (summary only)
 - https://raw.githubusercontent.com/Zurac-Apps/4tify/master/Create-Restore.sh
 - https://raw.githubusercontent.com/Zurac-Apps/4tify/master/Restore.sh
+- https://raw.githubusercontent.com/Zurac-Apps/4tify/master/support_files/4.3/Patches/boot.sh
+- https://raw.githubusercontent.com/Zurac-Apps/4tify/master/support_files/4.3/Patches/fstab
+- https://github.com/Zurac-Apps/4tify-iPad2
+- https://github.com/axi0mX/ios-kexec-utils
 - https://theapplewiki.com/wiki/LwVM (summary only)
 - https://es.slideshare.net/seguridadapple/iphone-data-protection-in-depth (summary only)
