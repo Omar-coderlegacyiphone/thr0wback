@@ -6,7 +6,9 @@
 # kloader. Nothing is written to the active system; a reboot returns to your
 # normal iOS.
 #
-#   thr0wback test                 # self-test: jump to a tiny do-nothing program
+#   thr0wback                      # menu: press a number
+#   thr0wback test                 # self-test: jump to a tiny do-nothing program (up to 3 tries)
+#   thr0wback log                  # results of past tests
 #   thr0wback info                 # read-only: show how the phone's storage is laid out
 #   thr0wback disk                 # read-only: free space and the GPT slices (names, sizes)
 #   thr0wback list                 # show prepared targets
@@ -46,18 +48,56 @@ sig_at() {
   [ "${BYTES[$1]}${BYTES[$1+1]}${BYTES[$1+2]}${BYTES[$1+3]}${BYTES[$1+4]}${BYTES[$1+5]}${BYTES[$1+6]}${BYTES[$1+7]}" = "4546492050415254" ]
 }
 
+# Helpers for `test` and `log`. THR0WBACK_WAIT only exists so the script can be tested quickly.
+LOG="$ROOT/test-log.txt"
+WAIT="${THR0WBACK_WAIT:-12}"
+now() { date '+%H:%M:%S' 2>/dev/null || echo "--:--:--"; }
+uptime_secs() {
+  local BT NOW
+  BT="$(sysctl -n kern.boottime 2>/dev/null)" || { echo "?"; return 0; }
+  BT="${BT#*sec = }"; BT="${BT%%,*}"
+  NOW="$(date +%s 2>/dev/null)" || { echo "?"; return 0; }
+  case "$BT$NOW" in *[!0-9]*|"") echo "?" ;; *) echo $(( NOW - BT )) ;; esac
+}
+logw() { { echo "$*" >> "$LOG"; } 2>/dev/null || true; sync 2>/dev/null || true; }
+wait_secs() {
+  local END=$(( SECONDS + $1 ))
+  while [ "$SECONDS" -lt "$END" ]; do
+    if command -v sleep >/dev/null 2>&1; then sleep 1; fi
+  done
+}
+
 case "${1:-}" in
   test)
-    # Needs no Apple files. Phone back to normal = jump did NOT happen;
-    # phone frozen/black = the jump worked (hold Power+Home to restart).
+    # Needs no Apple files. The phone freezing or staying black = the jump worked.
+    # A phone that comes back is a miss, so it tries again (a redo after a miss
+    # hit both times so far). Every attempt is logged; a hit kills this script
+    # with the phone, so a START line with nothing after it means a hit.
     SELFTEST="/usr/share/thr0wback/selftest.bin"
     [ -f "$SELFTEST" ] || die "missing ${SELFTEST} — reinstall the package."
-    echo "thr0wback test: jumping to a tiny do-nothing program (no second iOS)."
-    echo "  Phone comes back to normal iOS  -> the jump did NOT happen."
-    echo "  Phone stays black or frozen     -> the jump WORKED."
-    echo "  Either way, hold Power+Home ~10s afterwards to restart."
-    sync 2>/dev/null || true
-    exec "$KLOADER" "$SELFTEST"
+    mkdir -p "$ROOT" 2>/dev/null || true
+    RUN=1
+    if [ -f "$LOG" ]; then
+      while IFS= read -r L; do
+        case "$L" in R*" A1 START"*) RUN=$((RUN + 1)) ;; esac
+      done < "$LOG"
+    fi
+    echo "thr0wback test #${RUN}: jumping to a tiny do-nothing program (no second iOS)."
+    echo "  Phone freezes or stays black -> the jump WORKED."
+    echo "    Hold Power+Home ~10s to restart, then run: thr0wback log"
+    echo "  Phone comes back -> a miss. I try again, up to 3 attempts."
+    A=1
+    while [ "$A" -le 3 ]; do
+      echo "-- attempt $A of 3 --"
+      if [ "$A" -gt 1 ]; then echo "  (a line about larm_init_tramp failing may appear now; that is OK)"; fi
+      logw "R$RUN A$A START $(now) up=$(uptime_secs)"
+      "$KLOADER" "$SELFTEST" || true
+      wait_secs "$WAIT"
+      logw "R$RUN A$A MISS $(now)"
+      echo "  attempt $A: the phone came back (a miss)."
+      A=$((A + 1))
+    done
+    echo "No jump in 3 attempts. Restart the phone (hold Power+Home ~10s) before using it."
     ;;
   info)
     # Read-only: changes nothing, only prints what the phone already knows.
@@ -135,9 +175,38 @@ case "${1:-}" in
       echo "  free after the last slice: $(( (LASTU - MAXLAST) * SEC / 1048576 )) MB"
     fi
     ;;
+  log)
+    if [ ! -s "$LOG" ]; then echo "No tests recorded yet. Use: thr0wback test"; exit 0; fi
+    RES=(); CUR=""; LASTA=""; LASTK=""; UP=""; H1=0; HR=0; HN=0
+    emit() {
+      [ -n "$CUR" ] || return 0
+      if [ "$LASTK" = "START" ]; then
+        if [ "$LASTA" = "A1" ]; then H1=$((H1 + 1)); else HR=$((HR + 1)); fi
+        RES[${#RES[@]}]="  #${CUR#R} ${UP}  HIT on attempt ${LASTA#A}"
+      else
+        HN=$((HN + 1))
+        RES[${#RES[@]}]="  #${CUR#R} ${UP}  no jump (${LASTA#A} misses)"
+      fi
+    }
+    while IFS= read -r L; do
+      set -- $L
+      case "${3:-}" in START|MISS) ;; *) continue ;; esac
+      if [ "$2" = "A1" ] && [ "$3" = "START" ]; then emit; CUR="$1"; UP="${5:-up=?}"; fi
+      LASTA="$2"; LASTK="$3"
+    done < "$LOG"
+    emit
+    echo "thr0wback log (HIT = the phone froze, or the test was cancelled; up = seconds since boot):"
+    I=0; [ "${#RES[@]}" -le 10 ] || I=$(( ${#RES[@]} - 10 ))
+    while [ "$I" -lt "${#RES[@]}" ]; do echo "${RES[$I]}"; I=$((I + 1)); done
+    echo "  Total $(( H1 + HR + HN )): $H1 hit on the 1st try, $HR needed a retry, $HN never jumped."
+    ;;
   list)
     echo "Prepared targets in ${ROOT}:"
-    [ -d "$ROOT" ] && ls -1 "$ROOT" 2>/dev/null || echo "  (none yet)"
+    FOUND=""
+    for D in "$ROOT"/*/; do
+      if [ -d "$D" ]; then D="${D%/}"; echo "  ${D##*/}"; FOUND=1; fi
+    done
+    if [ -z "$FOUND" ]; then echo "  (none yet)"; fi
     ;;
   boot)
     TARGET="${2:-}"; [ -n "$TARGET" ] || die "usage: thr0wback boot <target>"
@@ -153,6 +222,44 @@ case "${1:-}" in
     sync 2>/dev/null || true
     exec "$KLOADER" "$IMAGE"
     ;;
+  ""|menu)
+    if [ ! -t 0 ]; then echo "usage: thr0wback {test | log | info | disk | list | boot <target>}"; exit 1; fi
+    while true; do
+      echo
+      echo "thr0wback menu"
+      echo " 1) test  jump to a do-nothing program"
+      echo " 2) log   results of past tests"
+      echo " 3) disk  storage layout (read-only)"
+      echo " 4) info  phone info (read-only)"
+      echo " 5) list  prepared targets"
+      echo " 6) boot  boot a prepared target"
+      echo " q) quit"
+      printf "Press a key: "
+      CHOICE=""
+      read -r -n 1 CHOICE || exit 0
+      echo
+      case "$CHOICE" in
+        1) /bin/bash "$0" test || true ;;
+        2) /bin/bash "$0" log || true ;;
+        3) /bin/bash "$0" disk || true ;;
+        4) /bin/bash "$0" info || true ;;
+        5) /bin/bash "$0" list || true ;;
+        6)
+          /bin/bash "$0" list || true
+          printf "Target name (Enter to cancel): "
+          T=""; read -r T || exit 0
+          if [ -n "$T" ]; then
+            printf "Jump to %s now? Hold Power+Home ~10s if the phone freezes. (y/n) " "$T"
+            Y=""; read -r -n 1 Y || exit 0
+            echo
+            if [ "$Y" = "y" ]; then /bin/bash "$0" boot "$T" || true; fi
+          fi
+          ;;
+        q|Q) exit 0 ;;
+        *) echo "Press 1-6 or q." ;;
+      esac
+    done
+    ;;
   *)
-    echo "usage: thr0wback {test | info | disk | list | boot <target>}"; exit 1 ;;
+    echo "usage: thr0wback {test | log | info | disk | list | boot <target>}"; exit 1 ;;
 esac

@@ -11,7 +11,8 @@ components only, and you just install the result.
 
 - `kloader` — the open-source on-device loader (boots a prepared bootchain out
   of the running iOS; no USB).
-- `/usr/bin/thr0wback` — the launcher (`thr0wback test` / `info` / `list` / `boot <target>`).
+- `/usr/bin/thr0wback` — the launcher. Run `thr0wback` for a menu (press a number), or use
+  `test` / `log` / `info` / `disk` / `list` / `boot <target>` directly.
 - `/usr/share/thr0wback/selftest.bin` — a 4 KB do-nothing image for `thr0wback test`.
 
 It does **not** contain any Apple firmware. That stays off the public repo for

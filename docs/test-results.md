@@ -59,8 +59,11 @@ Ideas, unproven. (a) A miss may mean the phone had not fully powered down inside
 the 2 s window (for example while still busy after a restart), so the wake took
 the normal path. Run 1's later random freeze fits the hook having been installed
 but not triggered by that wake. (b) Runs may miss more often as the first
-attempt after a restart. To check, record for each run whether it was the first
-since a restart and how long since boot.
+attempt after a restart. (c) kloader writes its kernel patch just as the phone starts to sleep. If the patch
+is still only in the CPU cache when the CPU powers down, the wake reads the
+original code (a miss) and a later sleep flushes it, so a redo hits and an
+un-restarted phone freezes later. Prediction: after a miss, the next sleep
+jumps. To check, 0.1.7 records every attempt (see Open items).
 
 ## Test 3: storage layout (`thr0wback info`, 0.1.3, read-only)
 
@@ -144,9 +147,12 @@ See `docs/kloader-port.md`.
 1. Run a real decrypted iBEC (owner's own firmware, never committed) via kloader
    and observe.
 2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3 (untested with a real iBEC).
-3. Auto-wake reliability: repeat runs, noting for each whether it was the first
-   since a restart and the time since boot. The 2.0 s delay is a compile-time
-   constant in the prebuilt binary.
+3. Auto-wake reliability: since 0.1.7 `thr0wback test` retries up to 3 times and
+   logs every attempt to `/var/mobile/thr0wback/test-log.txt` (uptime at the
+   start, and a START with nothing after it means the phone froze). `thr0wback
+   log` summarises hits per run. Collect runs, including ones right after a
+   restart, and paste the log here. The 2.0 s delay is a compile-time constant
+   in the prebuilt binary.
 4. Root filesystem / second-OS storage (the big one).
 5. ~~Run `thr0wback info`~~ Done, see Test 3. Next: `thr0wback disk` (0.1.5, reads the
    GPT) for slice names, sizes and free space.
