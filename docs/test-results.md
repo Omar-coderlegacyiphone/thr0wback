@@ -67,7 +67,24 @@ and `disk0s4` already exist and are not mounted; what they hold is unknown
 (4tify's scripts use these same two names for the second OS on its 7.1.2 host).
 The partition and format tools exist on the phone itself. Still unknown: slice
 sizes, the table type (`fdisk` is present, so probably MBR) and free space.
-`thr0wback disk` (0.1.4) reads those.
+`thr0wback disk` follows up (Test 4).
+
+## Test 4: partition table (`thr0wback disk`, 0.1.4, read-only)
+
+Only the lower half of the output fit on the screen (the free-space lines
+scrolled off).
+
+- `fdisk /dev/rdisk0`: sector size **8192 bytes**, geometry `975/32/63`
+  (1,965,744 sectors, about 16.1 GB, the whole disk). Entry 1 is id **EE**
+  (GPT protective MBR) covering sectors 1 to 1,965,743. Entries 2 to 4 are unused.
+- `disk0s3` and `disk0s4`: the two bytes at offset 1024 are not an HFS signature
+  ("not HFS (empty or other)").
+
+**Conclusions:** the real partition table is a **GPT** behind a protective MBR
+(fdisk can't list GPT slices, so their names and sizes are still unseen). The
+disk's sectors are 8192 bytes, so GPT LBAs are 8 KB. `disk0s3` and `disk0s4` are
+not formatted HFS volumes, so probably empty or reserved, but that is not
+proven. `thr0wback disk` (0.1.5) reads the GPT entries directly.
 
 ## Corrected understanding
 
@@ -84,8 +101,8 @@ See `docs/kloader-port.md`.
 2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3 (untested with a real iBEC).
 3. Auto-wake reliability: repeat runs. The 2.0 s delay is a compile-time constant.
 4. Root filesystem / second-OS storage (the big one).
-5. ~~Run `thr0wback info`~~ Done, see Test 3. Next: `thr0wback disk` (0.1.4) for
-   slice sizes, free space and what `disk0s3` / `disk0s4` hold.
+5. ~~Run `thr0wback info`~~ Done, see Test 3. Next: `thr0wback disk` (0.1.5, reads the
+   GPT) for slice names, sizes and free space.
 
 ## Safety notes
 
