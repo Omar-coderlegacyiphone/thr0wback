@@ -231,6 +231,25 @@ way) or intermittent** (fitting the same hit/miss pattern seen with the
 wake-reliability tests earlier). Next: retry the identical step again before
 concluding anything structural.
 
+**Retried clean — this time no reboot at all, all the way through `bootx`.**
+Built a small numbered menu (`irecovery-menu.sh`, same style as `thr0wback`'s
+own menu) to run each step individually and reduce typing mistakes (one
+earlier attempt failed only because "ramdisk" was mistyped as "randisk" — a
+command the device doesn't recognize, not a real error). With it: devicetree
+sent and registered cleanly, ramdisk sent and registered cleanly, then
+kernelcache sent and `bootx` issued — **the phone's screen stayed solid black
+(not a quick bounce-back), consistent with something actually running.**
+
+But `irecovery -q` immediately afterward still showed the exact same,
+fully-correct Recovery Mode state (`CPID: 0x8930`, real ECID/SRNM/IMEI,
+`MODE: Recovery`) — i.e. no crash, but also no sign of having moved past this
+same spot. Two readings, both open: (a) `bootx` was silently rejected by
+iBEC's recovery console (missing boot-args? a check we haven't satisfied?)
+and the console just kept idling, or (b) something about the kexec'd state
+makes querying report stale/cached information. Added verbose (`-v -v`)
+options to the menu to see whatever `bootx` actually says before concluding
+either way; not yet run.
+
 **One real safety note from this run:** this is the first point in the whole
 project where a wrong click could cause actual, hard-to-reverse harm — iTunes
 offers "Restore iPhone..." on this exact screen, which (unlike everything
