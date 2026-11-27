@@ -77,14 +77,48 @@ scrolled off).
 - `fdisk /dev/rdisk0`: sector size **8192 bytes**, geometry `975/32/63`
   (1,965,744 sectors, about 16.1 GB, the whole disk). Entry 1 is id **EE**
   (GPT protective MBR) covering sectors 1 to 1,965,743. Entries 2 to 4 are unused.
-- `disk0s3` and `disk0s4`: the two bytes at offset 1024 are not an HFS signature
-  ("not HFS (empty or other)").
+- `disk0s3` and `disk0s4`: the HFS-signature check said "not HFS (empty or other)".
+  **Withdrawn:** the same check also called the mounted root `disk0s1` not HFS, so
+  it did not work on this phone (see Test 5).
 
 **Conclusions:** the real partition table is a **GPT** behind a protective MBR
 (fdisk can't list GPT slices, so their names and sizes are still unseen). The
-disk's sectors are 8192 bytes, so GPT LBAs are 8 KB. `disk0s3` and `disk0s4` are
-not formatted HFS volumes, so probably empty or reserved, but that is not
-proven. `thr0wback disk` (0.1.5) reads the GPT entries directly.
+disk's sectors are 8192 bytes, so GPT LBAs are 8 KB. `thr0wback disk` (0.1.5)
+reads the GPT entries directly (Test 5).
+
+## Test 5: GPT slices (`thr0wback disk`, 0.1.5, read-only)
+
+Output, as photographed:
+
+```
+/: 628 MB used, 880 MB free
+/private/var: 1600 MB used, 12224 MB free
+GPT: 8192-byte sectors, 15357 MB usable
+#1 System        1524 MB  type 00534648
+#2 Data         13824 MB  type 00464d45
+#3 Apple HFS+       8 MB  type 00534648
+#4 Apple HFS+       0 MB  type 00534648
+free after the last slice: 0 MB
+HFS volumes: none
+not HFS: disk0s1 disk0s2 disk0s2s1 disk0s3 disk0s4
+```
+
+- Type `00534648` is the bytes `00 'S' 'F' 'H'`, the first field `48465300` of
+  Apple's HFS GUID. `00464d45` is `00 'F' 'M' 'E'`, first field `454d4600`, the
+  ASCII letters "EMF". Probably Apple's encrypted-data partition type (iOS 4
+  wraps the data volume, which would explain the nested `disk0s2s1`). That is my
+  reading and is unverified.
+- **The disk is fully allocated:** 1524 + 13824 + 8 + under 1 MB, and under 1 MB
+  free after the last slice. A second OS needs space from somewhere.
+- `/private/var` has 12224 MB free inside the 13824 MB Data slice, so that is the
+  only place the space can come from, by shrinking it.
+- `disk0s3` (8 MB) and `disk0s4` (under 1 MB) are tiny HFS-typed slots, far too
+  small for a second OS.
+- **Correction:** the last two lines ("HFS volumes: none / not HFS: ...") are
+  wrong. The same check calls the mounted root `disk0s1` not HFS. It read 1024
+  bytes from a block device with 8192-byte sectors, which probably fails.
+  Test 4's claim that `disk0s3` / `disk0s4` aren't HFS is therefore withdrawn.
+  0.1.6 drops that check and shows the GPT type (HFS / EMF) instead.
 
 ## Corrected understanding
 

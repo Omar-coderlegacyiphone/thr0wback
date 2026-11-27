@@ -18,7 +18,7 @@ support in iOS 3 — hardware gap).
 | | |
 |---|---|
 | Device | iPhone 4 GSM, 16 GB — **iPhone3,1** |
-| Storage | GPT behind a protective MBR, 8192-byte sectors: root `disk0s1`, var `disk0s2s1`, plus unmounted non-HFS `disk0s3` / `disk0s4` (see `docs/test-results.md`) |
+| Storage | GPT behind a protective MBR, 8192-byte sectors, fully allocated: System 1524 MB (`disk0s1`), Data 13824 MB (`disk0s2`, EMF type; var is the nested `disk0s2s1`, 12224 MB free), tiny `disk0s3` (8 MB) and `disk0s4` (under 1 MB) (see `docs/test-results.md`) |
 | SoC | Apple A4 — **s5l8930x** |
 | Host OS | **iOS 4.1 (8B117)**, codename Baker, jailbroken (untethered, Legacy iOS Kit / powdersn0w) |
 | Bootrom | **limera1n** (unpatchable) |

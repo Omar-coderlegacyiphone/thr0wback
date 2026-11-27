@@ -60,9 +60,9 @@ image, not a kernel.
 3. **Not phone-only.** Partitioning runs from an SSH ramdisk booted from a
    computer over DFU.
 4. **Nobody has documented a dual boot from a 4.1 host.** The 4.1 table is a GPT
-   (measured, Test 4), like the one 4tify builds on 7.1.2. Unknown: the slice
-   sizes, whether the same partition numbers work, and whether a patched iBEC
-   boots from a second partition on 4.1.
+   (measured, Test 4), like the one 4tify builds on 7.1.2. Unknown: how to shrink the
+   Data slice (typed EMF, probably encrypted), whether the same partition numbers
+   work, and whether a patched iBEC boots from a second partition on 4.1.
 5. **The partition step can lose data or stop iOS 4.1 booting.** Recovery means
    restoring from a computer.
 
@@ -73,7 +73,10 @@ names, not LwVM). `disk0s3` and `disk0s4` already exist, unmounted, contents
 unknown. `fdisk`, `newfs_hfs`, `mount_hfs`, `fsck_hfs` and `dd` are on the
 phone; `asr` is not. `fdisk` shows a protective MBR (id EE) over the whole
 16 GB disk with 8192-byte sectors, so the real table is a GPT, like the one 4tify
-builds on its 7.1.2 host. `disk0s3` / `disk0s4` are not HFS volumes. Details:
+builds on its 7.1.2 host. The GPT (read by `thr0wback disk`, Test 5) is: System 1524 MB, Data
+13824 MB (type code spells "EMF", probably the encrypted kind), and two tiny slots
+(8 MB and under 1 MB). Nothing is unallocated, and `/private/var` has 12224 MB
+free inside Data. So a second OS means shrinking the Data slice. Details:
 `docs/test-results.md`.
 
 ## Options
@@ -95,8 +98,9 @@ builds on its 7.1.2 host. `disk0s3` / `disk0s4` are not HFS volumes. Details:
 
 ## Open questions
 
-- Slice names, sizes and free space (`thr0wback disk`, 0.1.5, reads the GPT; read-only).
-- What are `disk0s3` and `disk0s4`? Not HFS volumes (Test 4), so empty or reserved?
+- ~~Slice names, sizes and free space.~~ Answered (Test 5): fully allocated, 12224 MB
+  free inside Data.
+- How do you shrink the EMF-typed Data slice on iOS 4.1 safely? No guide found.
 - Can a patched iBEC started by kloader boot from a second partition on a 4.1 host?
 - What do `boot.sh` and the 4tify app do?
 - What does `TwistedMind2` write?

@@ -87,7 +87,7 @@ case "${1:-}" in
     echo " ${TOOLS:- (none)}"
     ;;
   disk)
-    # Read-only: changes nothing. Reads the GPT and 2 bytes at the start of each slice.
+    # Read-only: changes nothing. Reads df output and the GPT (partition list) only.
     echo "thr0wback disk (read-only):"
     df -k / /private/var 2>/dev/null | while IFS= read -r LINE; do
       set -- $LINE
@@ -128,20 +128,12 @@ case "${1:-}" in
         done
         F=$(le32 $((B+32))); L=$(le32 $((B+40)))
         [ "$L" -le "$MAXLAST" ] || MAXLAST=$L
-        printf '  #%d %-10s %6d MB  type %s\n' "$I" "${NAME:-(no name)}" "$(( (L - F + 1) * SEC / 1048576 ))" "${BYTES[B]}${BYTES[B+1]}${BYTES[B+2]}${BYTES[B+3]}"
+        T4="${BYTES[B]}${BYTES[B+1]}${BYTES[B+2]}${BYTES[B+3]}"
+        case "$T4" in 00534648) TN="HFS" ;; 00464d45) TN="EMF" ;; *) TN="type $T4" ;; esac
+        printf '  #%d %-10s %6d MB  %s\n' "$I" "${NAME:-(no name)}" "$(( (L - F + 1) * SEC / 1048576 ))" "$TN"
       done
       echo "  free after the last slice: $(( (LASTU - MAXLAST) * SEC / 1048576 )) MB"
     fi
-    HFS=""; OTHER=""
-    for N in disk0s1 disk0s2 disk0s2s1 disk0s3 disk0s4; do
-      D="/dev/$N"
-      [ -e "$D" ] || continue
-      SIG=""
-      IFS= read -r -n 2 SIG < <(dd if="$D" bs=1024 skip=1 count=1 2>/dev/null) || true
-      case "$SIG" in "H+"|"HX") HFS="$HFS $N" ;; *) OTHER="$OTHER $N" ;; esac
-    done
-    echo "  HFS volumes:${HFS:- none}"
-    echo "  not HFS:${OTHER:- none}"
     ;;
   list)
     echo "Prepared targets in ${ROOT}:"
