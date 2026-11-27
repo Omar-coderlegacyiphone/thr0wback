@@ -324,10 +324,13 @@ looks like; a miss comes back to the lock screen within about 2 s. The owner's
 **The unplug-then-replug run from earlier that day.** One run with the cable
 out: the screen went black, and when the cable was plugged in afterward the phone
 started booting by itself (Apple logo, then the normal lock screen) with no
-button pressed. The owner's point: that is just the normal automatic power-on, an
-iPhone that is off turns itself on when it gets power. That fits (a) below. A
-phone running iBEC (as in Test 6, where the cable was already in) is already on,
-so plugging in should have shown Recovery Mode on the computer instead.
+button pressed. The owner's reading: the phone was off and turned itself on when
+it detected power. That is unverified as general iPhone behavior (a normally
+powered-off iPhone usually shows a charging icon and waits for the power
+button), so the phone may have been stuck or asleep rather than plainly off;
+either way it went through a cold boot. A phone running iBEC (as in Test 6,
+where the cable was already in) is already on, so plugging in should have shown
+Recovery Mode on the computer instead.
 Candidates: (a) that run wasn't a hit (the phone was off, or slept and never
 woke), or (b) an unplugged jump leaves the phone off or reset. Both look the same
 on the phone's screen, so a black screen with nothing plugged in does not prove
