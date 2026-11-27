@@ -15,6 +15,14 @@ kloader gets tfp0, hooks the wake path at `0x80065008`, and our own image runs
 after the wake. That covers "leave iOS 4.1 and run other code". It does not
 cover the storage side below.
 
+axi0mX's own README (`ios-kexec-utils`, re-read directly this session) says kloader
+"will automatically wake up device after 2 seconds (no button press required,
+should work 99.9% of the time)" — the whole sleep-then-wake-then-jump cycle is
+done by the tool itself, in software, within about 2 seconds of running it. No
+button press, no external event, is needed or expected. That matters for reading
+test results: whatever is going to happen (hit or miss) has already happened by
+the time the screen looks black, regardless of USB/button state at that moment.
+
 ## What a persistent second OS needs
 
 1. A second System partition (normally also a second Data partition) on the NAND.
@@ -253,7 +261,21 @@ bypass — and remain fine to use, as they have been throughout this project.
 - How do you shrink the EMF-typed Data slice on iOS 4.1 safely? No guide found.
 - Can a patched iBEC started by kloader boot from a second partition on a 4.1 host?
 - ~~What do `boot.sh` and the 4tify app do?~~ Answered above.
-- How are the patched `iBSS` / `iBEC` made, and where does `multi_kloader` come from? Not in the repo.
+- ~~Where does `multi_kloader` come from?~~ Answered: it's real, and it's from
+  **winocm's original `ios-kexec-utils`** — our own `kloader` is axi0mX's later
+  fork of that same project, which kept `kloader` but dropped `multi_kloader`.
+  Confirmed by cloning a mirror (`ramytuki/ios-kexec-utils`) and reading
+  `multi_kloader.c` directly. Its own top-of-file comment says plainly:
+  **"Requires iOS 6.x or 7.x. (This version only.)"** — the physical RAM
+  offsets and the iBSS/iBEC remap addresses it hardcodes (`S5L8930_PHYS_OFF`,
+  `S5L8940_PHYS_OFF`, the `0x7fe00000`/`0x7fd00000` pair) are specific to that
+  era's kernels. So it is not a drop-in for our 4.1 host: using it would mean
+  redoing, for two chained images, the same kind of address-hunting that
+  already got our single-image `kloader` working on 4.1 (Test 1's
+  `0x80065008`) — real, tractable work, not a quick swap. How the patched
+  `iBSS`/`iBEC` files themselves get made (signature stripping, boot-args)
+  is a separate question this doesn't answer, and we're not doing that part
+  regardless (see the signature-patching policy above).
 - What does `TwistedMind2` write?
 - ~~Does the LwVM-vs-GPT split ("Addition 3: iOS 4 dualboot") apply to us?~~ No.
   That guide solves a **newer** (iOS 5+, LwVM) host running iOS 4.x as the
@@ -411,7 +433,8 @@ above is ready to wire in as-is — that part doesn't need re-proving.
 - https://raw.githubusercontent.com/Zurac-Apps/4tify/master/support_files/4.3/Patches/boot.sh
 - https://raw.githubusercontent.com/Zurac-Apps/4tify/master/support_files/4.3/Patches/fstab
 - https://github.com/Zurac-Apps/4tify-iPad2
-- https://github.com/axi0mX/ios-kexec-utils
+- https://github.com/axi0mX/ios-kexec-utils (our `kloader`; README's "auto-wake after 2s", checked)
+- https://github.com/ramytuki/ios-kexec-utils (mirror of winocm's original; `multi_kloader.c` read directly, checked)
 - https://papers.put.as/papers/ios/2012/iH8sn0w-Jailbreakcon2012.pdf (iOS 4 vs 5 signing era)
 - https://ipsw.me/install/iPhone3,1/8B117/ (current signing status, checked)
 - https://gist.github.com/2353599 (curl via Cydia/apt-get, CA-bundle caveat)
