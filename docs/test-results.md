@@ -300,15 +300,18 @@ Tries the "phone unplugged during the jump" idea from nyansatan's Part 6. Four
 runs, phone on battery, nothing connected, no computer nearby, so no `irecovery`
 check was possible. Owner's report:
 
-- **Runs 1, 2, 3:** stayed black ("thumbs up"). Counted as hits.
+- **Runs 1, 2, 3:** stayed black ("thumbs up"). Black is how a hit looks, but a
+  phone that is simply off or asleep looks the same, and with no computer there
+  was nothing to confirm it. Not counted as hits yet.
 - **Run 4:** off for about 2 s, then back on "like the start": a miss (the same
   look as the misses in Test 2).
 
-3 hits in 4, versus first attempts hitting 1 in 4 in Test 2. Encouraging, but a
-small sample, and two things changed at once (the image is the 120 KB iBEC, not
-the 4 KB self-test, and the phone was unplugged). It is not known whether the
-Test 2 runs were plugged in. To pull these apart, note USB state and whether the
-phone was just restarted for every run from now on.
+3 black in 4. That looks better than first attempts in Test 2 (1 hit in 4), but
+it can't be compared yet: two things changed at once (the image is the 120 KB
+iBEC, not the 4 KB self-test, and the phone was unplugged), unplugged black runs
+are unconfirmed (see below), and it is not known whether the Test 2 runs were
+plugged in. From now on, note USB state for every run and confirm hits from the
+computer.
 
 **Correction to what was said earlier the same day.** The owner was told a hit
 should show the Apple logo with the cable/iTunes picture on the phone's own
@@ -318,21 +321,23 @@ after this kexec jump (the normal display setup is skipped). Black is what a hit
 looks like; a miss comes back to the lock screen within about 2 s. The owner's
 "it just stays black" report was most likely a hit.
 
-**Still unexplained: the unplug-then-replug run from earlier that day.** One run
-with the cable out: the screen went black, and when the cable was plugged in
-afterward the phone started booting by itself (Apple logo, then the normal lock
-screen) with no button pressed. If that run was a real hit with iBEC alive,
-plugging in should have shown Recovery Mode on the computer (as in Test 6, where
-the cable was already in). Two candidates: (a) it wasn't a real hit (the phone
-slept and never woke, and power simply started a normal boot), or (b) plugging
-in after an unplugged jump resets the phone. Both look the same on the phone's
-screen. Only `irecovery -q` can tell them apart.
+**The unplug-then-replug run from earlier that day.** One run with the cable
+out: the screen went black, and when the cable was plugged in afterward the phone
+started booting by itself (Apple logo, then the normal lock screen) with no
+button pressed. The owner's point: that is just the normal automatic power-on, an
+iPhone that is off turns itself on when it gets power. That fits (a) below. A
+phone running iBEC (as in Test 6, where the cable was already in) is already on,
+so plugging in should have shown Recovery Mode on the computer instead.
+Candidates: (a) that run wasn't a hit (the phone was off, or slept and never
+woke), or (b) an unplugged jump leaves the phone off or reset. Both look the same
+on the phone's screen, so a black screen with nothing plugged in does not prove
+a hit.
 
-**Next (needs the computer):** after a run that stays black with nothing
-plugged in, connect the cable and run `irecovery -q`. `MODE: Recovery` means
-black really is a hit and unplugged jumps work. The phone starting to boot
-instead means that run was not a hit, or plugging in resets it; repeat to find
-out which.
+**Next (needs the computer):** count hits the Test 6 way, with the cable already
+in before the jump and `irecovery -q` after, so every black run is checked. The
+unplugged variant is worth a few runs afterward: black, then plug in. `MODE:
+Recovery` means unplugged jumps work; the phone booting instead means they don't
+leave iBEC running.
 
 ## Corrected understanding
 
@@ -359,8 +364,9 @@ See `docs/kloader-port.md`.
 4. Root filesystem / second-OS storage (the big one).
 5. ~~Run `thr0wback info`~~ Done, see Test 3. Next: `thr0wback disk` (0.1.5, reads the
    GPT) for slice names, sizes and free space.
-6. After an unplugged jump that stays black (Test 7), does plugging in and running
-   `irecovery -q` show `MODE: Recovery`? Needs the computer.
+6. Test 7: with the cable already in before the jump, how often does a black run
+   show `MODE: Recovery`? And does an unplugged black run ever (plug in after,
+   then `irecovery -q`)? Needs the computer.
 
 ## Safety notes
 
