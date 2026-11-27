@@ -191,10 +191,45 @@ code runs; it just isn't shown here. Full writeup, including the TLS dead-end
 that led to a computer being used for this delivery, is in
 `docs/dualboot-plan.md`.
 
-**Not yet attempted:** whether the recovery-mode USB channel is actually
-*interactive* at this point — i.e. whether a tool like `irecovery`
-(ipwndfu/libimobiledevice-adjacent) can query or send further commands to it,
-or whether only the initial USB identification works. That's the next test.
+**Follow-up, same session: the channel IS interactive — `irecovery -q` worked.**
+Re-entered the same state (`thr0wback boot 4.0-stock`), and with the phone
+connected to a Linux computer running `irecovery` (`libimobiledevice/libirecovery`,
+installed via `apt install irecovery`), `irecovery -q` returned real, correct,
+device-specific data:
+```
+CPID: 0x8930   (matches S5L8930X, this chip family)
+ECID: [device-unique, redacted here — never commit a real one]
+SRNM: [matches the serial number iTunes showed independently; redacted]
+IMEI: [device-unique, redacted here — never commit a real one]
+MODE: Recovery
+```
+This is real two-way protocol communication, not just a USB identity string —
+confirms the actual Apple iBEC code is running and answering queries correctly.
+
+**Then: sending an actual file over USB (`irecovery -f`) appears to crash it.**
+Prepared DeviceTree.bin, Kernelcache.bin (still `complzss`-compressed — iBoot
+decompresses it itself) and UpdateRamdisk.dmg (decrypted, confirmed real HFS+
+volume at the expected offset) for this build, delivered to the owner's
+computer directly (not via the phone's own network — this device's `curl` is
+permanently incapable of reaching Apple's current server, see
+`docs/dualboot-plan.md`). Planned sequence: `-f DeviceTree.bin`, `-c devicetree`,
+`-f UpdateRamdisk.dmg`, `-c ramdisk`, `-f Kernelcache.bin`, `-c bootx`.
+
+First command, `irecovery -f DeviceTree.bin`, was followed almost immediately
+by the phone rebooting on its own (back to normal iOS) — the "unable to
+connect to device" error `irecovery` then printed was a **symptom** of that
+(the device was simply gone by the time it tried to continue), not the cause.
+So: the lightweight query worked, but an actual bulk USB file transfer seems
+to destabilize this state. Plausible (unconfirmed) explanation: a true cold
+boot's earlier stages (LLB/iBoot/iBSS) would normally set up USB DMA/buffer
+hardware before iBEC's recovery console starts; the kexec jump skips directly
+to iBEC, so that setup may be incomplete or inconsistent, something a small
+query might tolerate but a real data transfer does not.
+
+**Not yet confirmed: whether this is consistent (every file-send fails this
+way) or intermittent** (fitting the same hit/miss pattern seen with the
+wake-reliability tests earlier). Next: retry the identical step again before
+concluding anything structural.
 
 **One real safety note from this run:** this is the first point in the whole
 project where a wrong click could cause actual, hard-to-reverse harm — iTunes
