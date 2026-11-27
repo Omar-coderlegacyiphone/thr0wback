@@ -50,10 +50,25 @@ Printed: `Read image into buffer ... length: 4096`,
   iOS: no jump.
 - **Run 5:** an immediate redo of run 4. The phone stayed black: the jump worked.
 
+Runs 6 to 8 were filmed by the owner (launcher 0.1.6, so no log). Timings are
+from frames of the videos, so they are approximate:
+
+- **Run 6:** a first attempt. The screen went dark about 0.3 s after the
+  `kernel_base` line printed, stayed dark about 2.4 s, then the terminal came
+  back showing "Magic happening now": a miss.
+- **Run 7:** an immediate redo of run 6, no restart (run 6's output was still on
+  screen). Dark about 0.3 s after `kernel_base` again, and it was still black
+  when the video ended 2.9 s or more later: a hit.
+- **Run 8:** a first attempt in a fresh terminal (whether the phone had just been
+  restarted is not known). This time the terminal printed everything up to
+  "Magic happening now" and the screen stayed on for about **3.6 s more** before
+  going dark. The video ends 0.9 s after that, too soon to show whether it came
+  back; the owner's caption says "Stays off", so it is counted as a hit.
+
 **Conclusion:** the wake hook works and code we supply gets executed on this iOS
 version. The 2-second auto-wake is **not reliable**: of the runs with a
-known result, 2 hit (runs 2, 5) and 2 missed (runs 1, 4), and both times a redo
-straight after a miss hit.
+known result, 4 hit (runs 2, 5, 7, 8) and 3 missed (runs 1, 4, 6). Every redo
+straight after a miss hit (3 of 3); first attempts hit 1 of 4 (run 3 unknown).
 
 Ideas, unproven. (a) A miss may mean the phone had not fully powered down inside
 the 2 s window (for example while still busy after a restart), so the wake took
@@ -63,7 +78,12 @@ attempt after a restart. (c) kloader writes its kernel patch just as the phone s
 is still only in the CPU cache when the CPU powers down, the wake reads the
 original code (a miss) and a later sleep flushes it, so a redo hits and an
 un-restarted phone freezes later. Prediction: after a miss, the next sleep
-jumps. To check, 0.1.7 records every attempt (see Open items).
+jumps. (d) Supporting hint from the videos: in the two quick-sleep runs (6, 7)
+the screen went dark within ~0.3 s of `kernel_base`; run 6 missed, and run 7 hit
+only because run 6's patch was already there. In run 8 the sleep came ~3.6 s
+after kloader had finished writing, and it hit on a first attempt. So a slow
+sleep may mean the patch is flushed in time. Three videos are not proof. To
+check, 0.1.7 records every attempt (see Open items).
 
 ## Test 3: storage layout (`thr0wback info`, 0.1.3, read-only)
 
