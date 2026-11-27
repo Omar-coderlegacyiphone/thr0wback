@@ -43,13 +43,24 @@ Printed: `Read image into buffer ... length: 4096`,
   sleep/wake. Battery was also low, so this is not proven.
 - **Run 2:** same output. The phone did not come back and stayed black until
   Power+Home.
-- **Run 3:** the owner reported "same test, same thing", i.e. the same result as
-  run 2 (stayed black until Power+Home).
+- **Run 3:** the owner said "same test, same thing". Which result that meant was
+  never confirmed, so run 3 is unknown. (An earlier version of these notes
+  recorded it as a hit; that was an assumption.)
+- **Run 4 (next day):** the phone went off for about 2 s and came back to normal
+  iOS: no jump.
+- **Run 5:** an immediate redo of run 4. The phone stayed black: the jump worked.
 
 **Conclusion:** the wake hook works and code we supply gets executed on this iOS
-version. Not yet established: how reliable the 2-second auto-wake is on its own
-(run 1 missed, runs 2 and 3 hit; too few runs to call it reliable, and the
-reason for the miss is unknown).
+version. The 2-second auto-wake is **not reliable**: of the runs with a
+known result, 2 hit (runs 2, 5) and 2 missed (runs 1, 4), and both times a redo
+straight after a miss hit.
+
+Ideas, unproven. (a) A miss may mean the phone had not fully powered down inside
+the 2 s window (for example while still busy after a restart), so the wake took
+the normal path. Run 1's later random freeze fits the hook having been installed
+but not triggered by that wake. (b) Runs may miss more often as the first
+attempt after a restart. To check, record for each run whether it was the first
+since a restart and how long since boot.
 
 ## Test 3: storage layout (`thr0wback info`, 0.1.3, read-only)
 
@@ -133,7 +144,9 @@ See `docs/kloader-port.md`.
 1. Run a real decrypted iBEC (owner's own firmware, never committed) via kloader
    and observe.
 2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3 (untested with a real iBEC).
-3. Auto-wake reliability: repeat runs. The 2.0 s delay is a compile-time constant.
+3. Auto-wake reliability: repeat runs, noting for each whether it was the first
+   since a restart and the time since boot. The 2.0 s delay is a compile-time
+   constant in the prebuilt binary.
 4. Root filesystem / second-OS storage (the big one).
 5. ~~Run `thr0wback info`~~ Done, see Test 3. Next: `thr0wback disk` (0.1.5, reads the
    GPT) for slice names, sizes and free space.
