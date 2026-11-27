@@ -265,7 +265,27 @@ Added option 8 (`all-args`): same sequence, but runs
 `setenv boot-args '-v rd=md0'` + `saveenv` before `bootx` (`-v` for text
 verbose boot, `rd=md0` as a guess at the ramdisk's device name — unverified,
 the standard jailbreak-era convention for a recovery-registered ramdisk).
-Not yet run on the device.
+
+**Run: no change.** Option 8 produced the same result as plain `bootx` —
+commands accepted, same USB identity throughout, nothing visibly different
+on the phone. So `rd=md0` (or the `-v` verbose flag doing anything
+observable) wasn't it, at least not alone.
+
+Confirmed `bootx` is the right command for this stage regardless — "go" is
+specifically for the iBSS→iBEC handoff, a stage we already skip by kexec'ing
+straight into iBEC, so it wouldn't apply here. A guide covering this exact
+ramdisk-boot sequence (dualbootfun.github.io/dualboot/ramdisk-boot.html,
+which would likely have the exact correct boot-args string) could not be
+read from this session (host blocked). Worth reading properly before the
+next attempt, rather than guessing again.
+
+**Where this stands:** the kexec jump into a real, unmodified Apple iBEC is
+solidly proven (Test 6, this test). Getting that iBEC to actually hand off
+to a running kernel is the open frontier — `bootx` is accepted every time
+but nothing observable follows it yet. Next session: read the ramdisk-boot
+guide properly for the exact boot-args, and consider whether the kexec
+shortcut (skipping LLB/iBoot/iBSS) leaves some hardware state iBEC's
+kernel-load path depends on not set up the way a cold boot would.
 
 **One real safety note from this run:** this is the first point in the whole
 project where a wrong click could cause actual, hard-to-reverse harm — iTunes
