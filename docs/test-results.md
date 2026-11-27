@@ -250,6 +250,23 @@ makes querying report stale/cached information. Added verbose (`-v -v`)
 options to the menu to see whatever `bootx` actually says before concluding
 either way; not yet run.
 
+**Verbose run: commands are accepted, not rejected.** Every step printed
+`Command completed successfully`; the only warnings
+(`irecv_copy_nonce_with_tag: couldn't find tag NONC/SNON`) look harmless —
+those fields have shown as `N/A` in every successful query so far, so this
+is likely just how the tool arrives at that, not a new failure. Notably,
+reconnecting to issue `bootx` still opened USB device `05ac:1281` — the same
+identity as plain Recovery Mode. If the kernel had taken over, a different
+USB identity seems like it would be expected. Reading: `bootx` is understood
+and acknowledged, but nothing visibly happens afterward — plausibly because
+no boot-args were set telling the kernel what to mount as root.
+
+Added option 8 (`all-args`): same sequence, but runs
+`setenv boot-args '-v rd=md0'` + `saveenv` before `bootx` (`-v` for text
+verbose boot, `rd=md0` as a guess at the ramdisk's device name — unverified,
+the standard jailbreak-era convention for a recovery-registered ramdisk).
+Not yet run on the device.
+
 **One real safety note from this run:** this is the first point in the whole
 project where a wrong click could cause actual, hard-to-reverse harm — iTunes
 offers "Restore iPhone..." on this exact screen, which (unlike everything
