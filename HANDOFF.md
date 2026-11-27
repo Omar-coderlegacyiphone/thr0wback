@@ -85,8 +85,8 @@ after the on-device tests (details: `docs/test-results.md`):
    first run and hit on the next two; too few runs to call it reliable.
 3. **Correction:** kloader runs its file as a *bootloader-style* image (a raw,
    decrypted iBEC, first word `0xea00000e`), **not** a kernel Mach-O as this
-   doc previously said. `thr0wback boot` still looks for `kernel.macho` and
-   must change to `ibec.bin`.
+   doc previously said. `thr0wback boot` runs `<target>/ibec.bin` since 0.1.3
+   (it used to look for `kernel.macho`).
 4. **Next test:** run a real decrypted iBEC (from the owner's own firmware,
    never committed) and see what the phone does.
 5. **The actual open question:** getting code to run is not the same as getting

@@ -77,6 +77,7 @@ image, not a kernel.
 
 ## Before any partition step
 
+- The output of `thr0wback info` from the phone, so the 4.1 layout is known.
 - Computer with the ramdisk tooling, and a tested way to restore 4.1.
 - Full battery, and a backup of anything on the phone (it may be wiped).
 - A spare iPhone 4 to rehearse on, if at all possible.
@@ -85,6 +86,7 @@ image, not a kernel.
 ## Open questions
 
 - What partition table does iOS 4.1 use, and what do `disk0s1` / `disk0s2` hold?
+  (`thr0wback info`, 0.1.3, is read-only and should show this. Paste its output here.)
 - Can a patched iBEC started by kloader boot from a second partition on a 4.1 host?
 - What do `boot.sh` and the 4tify app do?
 - What does `TwistedMind2` write?

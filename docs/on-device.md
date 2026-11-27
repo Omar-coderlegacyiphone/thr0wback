@@ -11,7 +11,7 @@ components only, and you just install the result.
 
 - `kloader` — the open-source on-device loader (boots a prepared bootchain out
   of the running iOS; no USB).
-- `/usr/bin/thr0wback` — the launcher (`thr0wback test` / `list` / `boot <target>`).
+- `/usr/bin/thr0wback` — the launcher (`thr0wback test` / `info` / `list` / `boot <target>`).
 - `/usr/share/thr0wback/selftest.bin` — a 4 KB do-nothing image for `thr0wback test`.
 
 It does **not** contain any Apple firmware. That stays off the public repo for
@@ -21,9 +21,9 @@ copyright reasons; it's supplied per-device, from your own firmware.
 
 kloader jumps to a **raw bootloader-style image** (a decrypted iBEC/iBSS, first
 word `0xea00000e`), not to a kernel Mach-O; see `docs/test-results.md`.
-`thr0wback boot <target>` still looks for `<target>/kernel.macho`. That is the
-earlier, wrong assumption and is queued to change to a decrypted `ibec.bin`.
-Until then, use `thr0wback test`, which needs no Apple files.
+`thr0wback boot <target>` (0.1.3) runs `<target>/ibec.bin`, a decrypted iBEC.
+`thr0wback test` needs no Apple files, and `thr0wback info` only reads and
+shows how the phone's storage is laid out.
 
 Whatever the image is, it comes from **your** firmware, never the repo: decrypt
 with `scripts/img3.py` (keys from ipsw.me), keep it raw (not IMG3), and put it

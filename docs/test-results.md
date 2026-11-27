@@ -56,16 +56,17 @@ reason for the miss is unknown).
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
 after the wake, not as a kernel Mach-O. It warns unless word 0 is `0xea00000e`,
 and prints iBoot banner strings from `+0x200/+0x240/+0x280`. `thr0wback boot`
-still looks for `kernel.macho` and needs to change to a decrypted `ibec.bin`.
+used to look for `kernel.macho`; since 0.1.3 it runs a decrypted `ibec.bin`.
 See `docs/kloader-port.md`.
 
 ## Open items
 
 1. Run a real decrypted iBEC (owner's own firmware, never committed) via kloader
    and observe.
-2. Change `thr0wback boot` to use `ibec.bin`.
+2. ~~Change `thr0wback boot` to use `ibec.bin`.~~ Done in 0.1.3 (untested with a real iBEC).
 3. Auto-wake reliability: repeat runs. The 2.0 s delay is a compile-time constant.
 4. Root filesystem / second-OS storage (the big one).
+5. Run `thr0wback info` on the phone and paste its output here (iOS 4.1 disk layout).
 
 ## Safety notes
 

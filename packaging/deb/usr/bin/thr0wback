@@ -7,15 +7,15 @@
 # normal iOS.
 #
 #   thr0wback test                 # self-test: jump to a tiny do-nothing program
+#   thr0wback info                 # read-only: show how the phone's storage is laid out
 #   thr0wback list                 # show prepared targets
-#   thr0wback boot <target>        # kloader-boot a target (e.g. 4.0)
+#   thr0wback boot <target>        # kloader-boot a target's iBEC (e.g. 4.0)
 #
-# A "target" is a folder under /var/mobile/thr0wback/<target>/ holding a
-# RAW (not IMG3-wrapped) kernel image for that OS — the output of
-# `img3.py decrypt` + `lzss.py decompress` on that version's kernelcache.
-# Those are produced by the build (see docs/on-device.md) — this script only
-# boots what's there. kloader itself refuses IMG3/IM4P files outright, so this
-# checks for that up front with a clearer error.
+# A "target" is a folder under /var/mobile/thr0wback/<target>/ holding ibec.bin:
+# a RAW (not IMG3-wrapped) decrypted iBEC, the output of `img3.py decrypt` on
+# that version's iBEC. kloader copies it to RAM and jumps to it on the next
+# wake. kloader itself refuses IMG3/IM4P files outright, so this checks for
+# that up front with a clearer error.
 #
 # ─────────────────────────────────────────────────────────────────────────────
 # EXPERIMENTAL. First confirm 4.0 boots before trying the iOS 3 hybrid. If a
@@ -45,6 +45,33 @@ case "${1:-}" in
     sync 2>/dev/null || true
     exec "$KLOADER" "$SELFTEST"
     ;;
+  info)
+    # Read-only: changes nothing, only prints what the phone already knows.
+    echo "thr0wback info (read-only):"
+    echo "  device: $(uname -m), kernel $(uname -r)"
+    echo "-- mounted disks:"
+    mount 2>/dev/null | while IFS= read -r LINE; do
+      case "$LINE" in /dev/*) echo "  $LINE" ;; esac
+    done
+    echo "-- disk names:"
+    NAMES=""
+    for D in /dev/disk0*; do
+      if [ -e "$D" ]; then NAMES="$NAMES ${D#/dev/}"; fi
+    done
+    echo " ${NAMES:- (none found)}"
+    echo "-- /etc/fstab:"
+    if [ -r /etc/fstab ]; then
+      while IFS= read -r LINE; do echo "  $LINE"; done < /etc/fstab
+    else
+      echo "  (none)"
+    fi
+    echo "-- tools present:"
+    TOOLS=""
+    for T in newfs_hfs fsck_hfs mount_hfs asr dd fdisk gptfdisk; do
+      if command -v "$T" >/dev/null 2>&1; then TOOLS="$TOOLS $T"; fi
+    done
+    echo " ${TOOLS:- (none)}"
+    ;;
   list)
     echo "Prepared targets in ${ROOT}:"
     [ -d "$ROOT" ] && ls -1 "$ROOT" 2>/dev/null || echo "  (none yet)"
@@ -53,16 +80,16 @@ case "${1:-}" in
     TARGET="${2:-}"; [ -n "$TARGET" ] || die "usage: thr0wback boot <target>"
     DIR="${ROOT}/${TARGET}"
     [ -d "$DIR" ] || die "no such target: ${TARGET} (try: thr0wback list)"
-    KERNEL="${DIR}/kernel.macho"
-    [ -f "$KERNEL" ] || die "missing ${KERNEL} — target not fully prepared."
+    IMAGE="${DIR}/ibec.bin"
+    [ -f "$IMAGE" ] || die "missing ${IMAGE} — put the decrypted iBEC there (see docs/on-device.md)."
     MAGIC=""
-    IFS= read -r -n 4 MAGIC < "$KERNEL" || true
-    [ "$MAGIC" != "3gmI" ] || die "${KERNEL} is still IMG3-wrapped — decrypt with img3.py and decompress with lzss.py first."
-    echo "thr0wback: booting ${TARGET} via kloader..."
-    echo "  (screen will go black, then the second OS boots; reboot to return)"
+    IFS= read -r -n 4 MAGIC < "$IMAGE" || true
+    [ "$MAGIC" != "3gmI" ] || die "${IMAGE} is still IMG3-wrapped — decrypt it first (scripts/img3.py)."
+    echo "thr0wback: jumping to ${TARGET}'s iBEC via kloader..."
+    echo "  (screen goes dark; if the phone freezes, hold Power+Home ~10s to restart)"
     sync 2>/dev/null || true
-    exec "$KLOADER" "$KERNEL"
+    exec "$KLOADER" "$IMAGE"
     ;;
   *)
-    echo "usage: thr0wback {test | list | boot <target>}"; exit 1 ;;
+    echo "usage: thr0wback {test | info | list | boot <target>}"; exit 1 ;;
 esac

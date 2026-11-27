@@ -112,8 +112,8 @@ one file in, one jump, no further handoff logic. For our use it means:
    2-second auto-wake missed on the first run and hit on the next two, so
    reliability is still an open item.
 4. **Next test: a real image.** Run a decrypted iBEC (from the owner's own
-   firmware, never committed) via kloader and see what the phone does. Then
-   change `thr0wback boot` to look for `ibec.bin` instead of `kernel.macho`.
+   firmware, never committed) via kloader and see what the phone does.
+   `thr0wback boot <target>` runs `<target>/ibec.bin` since 0.1.3.
 5. **The root-filesystem question**, once a real image runs: figure out what it
    takes to get a mounted, matching userspace for the second OS.
 
