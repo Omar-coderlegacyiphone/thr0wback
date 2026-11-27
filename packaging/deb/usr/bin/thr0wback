@@ -11,6 +11,7 @@
 #   thr0wback log                  # results of past tests
 #   thr0wback info                 # read-only: show how the phone's storage is laid out
 #   thr0wback disk                 # read-only: free space and the GPT slices (names, sizes)
+#   thr0wback fetch                # download+decrypt a real Apple iOS 4.0 iBEC (needs curl)
 #   thr0wback list                 # show prepared targets
 #   thr0wback boot <target>        # kloader-boot a target's iBEC (e.g. 4.0)
 #
@@ -206,6 +207,77 @@ case "${1:-}" in
     while [ "$I" -lt "${#RES[@]}" ]; do echo "${RES[$I]}"; I=$((I + 1)); done
     echo "  Total $(( H1 + HR + HN )): $H1 hit on the 1st try, $HR needed a retry, $HN never jumped."
     ;;
+  fetch)
+    # Downloads ~125 KB from Apple's own server and decrypts it with Apple's
+    # own published per-build key — the iOS 4.0 (8A293) iBEC for this exact
+    # phone (iPhone3,1). Nothing is patched and no check is bypassed; this is
+    # the same operation scripts/img3.py does on a computer, run here instead.
+    # Hardcoded to this one build: the byte range below is specific to this
+    # exact Apple file (tested against both a local copy and Apple's live
+    # server while building this). Prepares the "4.0-stock" target — a real,
+    # unmodified Apple file, to test whether kexec can even run one at all
+    # (see docs/dualboot-plan.md). This is NOT read-only: it downloads over
+    # your network connection and writes one file under /var/mobile.
+    URL="https://secure-appldnld.apple.com/iPhone4/061-7380.20100621,Vfgb5/iPhone3,1_4.0_8A293_Restore.ipsw"
+    RANGE_START=598225853
+    LOCAL_HDR_LEN=81
+    COMP_LEN=124808
+    KEY="15d7ef3c974c6afcdf08d575c4bbfdcef260751667ae5fc2006f10ce5b03bb2d"
+    IV="3cde603259045d2dcc7f70bd39b9d8e9"
+    TNAME="4.0-stock"
+    DIR="${ROOT}/${TNAME}"
+
+    command -v curl    >/dev/null 2>&1 || die "no curl. Install it from Cydia (e.g. the BigBoss repo), then try again."
+    command -v openssl >/dev/null 2>&1 || die "no openssl. This phone can't decrypt the file."
+    command -v funzip   >/dev/null 2>&1 || die "no funzip. This phone can't unpack the file this way (see docs/dualboot-plan.md)."
+
+    TMP="$(mktemp -d)" || die "couldn't create a temp folder."
+    mkdir -p "$DIR" 2>/dev/null || true
+
+    echo "thr0wback fetch: downloading ~122 KB from Apple's own server..."
+    RANGE_END=$(( RANGE_START + LOCAL_HDR_LEN + COMP_LEN - 1 ))
+    curl -fsSL -r "${RANGE_START}-${RANGE_END}" -o "${TMP}/slice.zip" "$URL" \
+      || { rm -rf "$TMP"; die "download failed. Check your network connection and try again."; }
+    GOT=$(wc -c < "${TMP}/slice.zip")
+    [ "$GOT" -eq $((LOCAL_HDR_LEN + COMP_LEN)) ] \
+      || { rm -rf "$TMP"; die "got ${GOT} bytes, expected $((LOCAL_HDR_LEN + COMP_LEN)) — Apple may have changed this file; stopping rather than guessing."; }
+
+    echo "thr0wback fetch: unpacking..."
+    funzip < "${TMP}/slice.zip" > "${TMP}/raw.img3" 2>/dev/null || true
+    RAWLEN=$(wc -c < "${TMP}/raw.img3" 2>/dev/null || echo 0)
+    [ "$RAWLEN" -eq 125316 ] || { rm -rf "$TMP"; die "unpacked to ${RAWLEN} bytes, expected 125316 — unpacking failed."; }
+    MAGIC=""; IFS= read -r -n 4 MAGIC < "${TMP}/raw.img3" || true
+    [ "$MAGIC" = "3gmI" ] || { rm -rf "$TMP"; die "unpacked file isn't the IMG3 container we expected."; }
+
+    echo "thr0wback fetch: decrypting with Apple's own published key for this build (may take a moment)..."
+    u32le() {
+      local B; B=$(dd if="${TMP}/raw.img3" bs=1 skip="$1" count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
+      echo $(( 0x${B:6:2}${B:4:2}${B:2:2}${B:0:2} ))
+    }
+    OFF=20; DOFF=""; DLEN=""
+    while [ "$((OFF + 12))" -le "$RAWLEN" ]; do
+      TAG=$(dd if="${TMP}/raw.img3" bs=1 skip="$OFF" count=4 2>/dev/null)
+      TOTAL=$(u32le $((OFF + 4))); THISLEN=$(u32le $((OFF + 8)))
+      [ "$TOTAL" -ge 12 ] || break
+      if [ "$TAG" = "ATAD" ]; then DOFF=$((OFF + 12)); DLEN=$THISLEN; break; fi
+      OFF=$((OFF + TOTAL))
+    done
+    [ -n "$DOFF" ] || { rm -rf "$TMP"; die "couldn't find the encrypted part of the file (unexpected format)."; }
+    ALIGNED=$(( (DLEN / 16) * 16 )); TAIL=$(( DLEN - ALIGNED ))
+    dd if="${TMP}/raw.img3" bs=1 skip="$DOFF" count="$ALIGNED" 2>/dev/null \
+      | openssl enc -d -aes-256-cbc -nopad -K "$KEY" -iv "$IV" > "${TMP}/ibec.bin" \
+      || { rm -rf "$TMP"; die "decryption failed."; }
+    [ "$TAIL" -eq 0 ] || dd if="${TMP}/raw.img3" bs=1 skip="$((DOFF + ALIGNED))" count="$TAIL" 2>/dev/null >> "${TMP}/ibec.bin"
+
+    HEX=$(dd if="${TMP}/ibec.bin" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' ')
+    [ "$HEX" = "0e0000ea" ] || echo "  warning: decrypted file doesn't start with the expected bytes — the key may be stale."
+
+    mv -f "${TMP}/ibec.bin" "${DIR}/ibec.bin"
+    rm -rf "$TMP"
+    sync 2>/dev/null || true
+    echo "thr0wback fetch: done. ${DIR}/ibec.bin is a real, unmodified, Apple-signed iOS 4.0"
+    echo "  startup file for this exact phone. Nothing is patched. Try: thr0wback boot ${TNAME}"
+    ;;
   list)
     echo "Prepared targets in ${ROOT}:"
     FOUND=""
@@ -229,7 +301,7 @@ case "${1:-}" in
     exec "$KLOADER" "$IMAGE"
     ;;
   ""|menu)
-    if [ ! -t 0 ]; then echo "usage: thr0wback {test | log | info | disk | list | boot <target>}"; exit 1; fi
+    if [ ! -t 0 ]; then echo "usage: thr0wback {test | log | info | disk | fetch | list | boot <target>}"; exit 1; fi
     while true; do
       echo
       echo "thr0wback menu"
@@ -237,8 +309,9 @@ case "${1:-}" in
       echo " 2) log   results of past tests"
       echo " 3) disk  storage layout (read-only)"
       echo " 4) info  phone info (read-only)"
-      echo " 5) list  prepared targets"
-      echo " 6) boot  boot a prepared target"
+      echo " 5) fetch download+decrypt a real Apple iOS 4.0 iBEC (needs curl)"
+      echo " 6) list  prepared targets"
+      echo " 7) boot  boot a prepared target"
       echo " q) quit"
       printf "Press a key: "
       CHOICE=""
@@ -249,8 +322,9 @@ case "${1:-}" in
         2) /bin/bash "$0" log || true ;;
         3) /bin/bash "$0" disk || true ;;
         4) /bin/bash "$0" info || true ;;
-        5) /bin/bash "$0" list || true ;;
-        6)
+        5) /bin/bash "$0" fetch || true ;;
+        6) /bin/bash "$0" list || true ;;
+        7)
           /bin/bash "$0" list || true
           printf "Target name (Enter to cancel): "
           T=""; read -r T || exit 0
@@ -262,10 +336,10 @@ case "${1:-}" in
           fi
           ;;
         q|Q) exit 0 ;;
-        *) echo "Press 1-6 or q." ;;
+        *) echo "Press 1-7 or q." ;;
       esac
     done
     ;;
   *)
-    echo "usage: thr0wback {test | log | info | disk | list | boot <target>}"; exit 1 ;;
+    echo "usage: thr0wback {test | log | info | disk | fetch | list | boot <target>}"; exit 1 ;;
 esac
