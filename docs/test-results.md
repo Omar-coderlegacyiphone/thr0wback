@@ -370,6 +370,17 @@ See `docs/kloader-port.md`.
 6. Test 7: with the cable already in before the jump, how often does a black run
    show `MODE: Recovery`? And does an unplugged black run ever (plug in after,
    then `irecovery -q`)? Needs the computer.
+7. Owner's idea: run the same DeviceTree / ramdisk / kernelcache / `bootx` sequence
+   from the phone's own normal Recovery Mode (stock iBoot from a normal cold boot,
+   no kexec) instead of the kexec'd iBEC. If `bootx` does something visible there
+   (for example the USB identity changes from `05ac:1281`), the kexec shortcut
+   skipping the early boot stages is why it does nothing in Test 6; if it still
+   does nothing, the cause is in the files or boot-args. Unknown: whether the
+   phone's 4.1 iBoot accepts the 4.0 files (they're Apple-signed, so probably).
+   Getting in without the button dance: `nvram auto-boot=false`, then reboot
+   (untested on this phone). The phone then stays in recovery, even after
+   Power+Home, until `irecovery -n` (menu option 9), so only try it with the
+   computer at hand. Needs the computer.
 
 ## Safety notes
 
