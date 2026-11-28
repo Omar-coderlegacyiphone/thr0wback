@@ -458,6 +458,38 @@ theiphonewiki.com would likely cover it; unreachable from this session, see
 `docs/dualboot-plan.md`), or crosses into modifying/bypassing that check,
 which this project has already ruled out. Parked here for now.
 
+**Update: the owner pulled two of the blocked wiki pages via web.archive.org.**
+`Talk:Kernelcache` (2010-era) only pointed to `openiBooty`, which turns out to
+be a *tethered jailbreak* kernel-boot tool (uses a bootrom exploit to accept an
+unsigned/patched kernel) — a different category from what we want (loading
+Apple's own signed kernel the normal way), so no new lead there.
+
+`IBSS_commands` is more useful, though for a different device (`config_board =
+'n72ap'`, an iPod touch 2G, not our `n90ap`). Two things worth recording:
+
+1. **"Kernelcache image not valid" is a previously-documented message, not
+   something unique to us.** The page's own example session shows the identical
+   sequence: `Attempting to validate kernelcache @ 0x09000000` →
+   `Kernelcache image not valid` → `error loading kernelcache`. That example
+   follows a `script` command that ended in a `SYNTAX ERROR`, so it may be
+   showing a session that had already gone wrong for an unrelated reason, not a
+   clean demonstration of the normal failure cause. Either way: other people
+   have hit this exact message on real hardware; it isn't a sign something is
+   broken only on our end.
+2. **The validate address varies between runs** (`0x09000000` on the wiki's
+   n72ap example; our own Test 6 follow-up saw `0x41000000`). That's probably
+   wherever the last-uploaded file happened to land, tracked by an env var the
+   page lists as `loaddr` (shown as `0x9800000` by default on n72ap, a
+   different device — our own default is unknown). Also listed, never tried by
+   us: `boot-command`, `boot-device`, `boot-partition`, all env vars (via
+   `printenv`/`setenv`), currently `fsboot` / `nand0` / `0` on that device's
+   example — plausibly irrelevant to a manual `bootx` call, but unconfirmed.
+
+No fix found. Next, still unactioned: the longer-wait test (leave it 10-15
+minutes after `bootx` before checking, instead of a couple of minutes), and
+optionally `printenv` on our own phone during a kexec'd or recovery session, to
+see our own `loaddr`/`boot-device`/`boot-partition` values for comparison.
+
 ## Corrected understanding
 
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
