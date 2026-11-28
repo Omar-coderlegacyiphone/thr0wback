@@ -510,8 +510,12 @@ hint: unplug/replug), not yet retried. Phone's screen stayed on the
 Apple-logo-with-progress-bar the whole time — expected, this is a ramdisk
 environment with no Springboard, not a hang.
 
-Next: pick "Connect to SSH" again (retry after the reset). If it connects,
-this is the first real shell on a kernel booted this way.
+**Confirmed: retry worked.** SSH connected, `-sh-4.0#` prompt. `uname` isn't
+present (normal for a stripped restore ramdisk), but `ls /` shows a real
+filesystem: `System bin com.apple.springboard.plist dev etc mktar.sh mnt1
+mnt2 private sbin usr var`. This is a genuine root shell on a kernel this
+project booted — the actual milestone the whole bootx investigation was
+after.
 
 ## Corrected understanding
 
