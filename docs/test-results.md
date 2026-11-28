@@ -500,9 +500,18 @@ either stayed solid black or stayed on the iTunes/cable picture. This is real
 evidence the kernelcache actually started executing and reached framebuffer
 / progress-bar code, past the point everything manual got stuck at.
 
-Not yet confirmed: whether it finished booting (reached an SSH-reachable
-ramdisk), hung partway, or rebooted after. Next: what happened once the
-progress bar finished — black screen, reboot, or an actual SSH login.
+**Confirmed: it finished.** The tool's own log shows ramdisk, devicetree and
+kernelcache all sent and run, then "Device should now boot to SSH ramdisk
+mode," landing on its SSH Ramdisk Menu (Connect to SSH / Dump Baseband /
+Erase All / etc.) with Legacy iOS Kit's default root@127.0.0.1:64xx /
+`alpine` login shown. First SSH connect attempt hit
+`kex_exchange_identification: read: Connection reset by peer` (tool's own
+hint: unplug/replug), not yet retried. Phone's screen stayed on the
+Apple-logo-with-progress-bar the whole time — expected, this is a ramdisk
+environment with no Springboard, not a hang.
+
+Next: pick "Connect to SSH" again (retry after the reset). If it connects,
+this is the first real shell on a kernel booted this way.
 
 ## Corrected understanding
 
