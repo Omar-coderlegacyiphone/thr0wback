@@ -378,8 +378,40 @@ the USB identity changes from `05ac:1281`. Unknown: in normal Recovery the
 installed iBoot may not use the ramdisk (restore-style boot-args are built into
 the restore iBEC, not the installed iBoot), so it might start the installed
 system under the 4.0 kernel instead; either result is informative.
-Housekeeping: Test 6's option 8 ran `saveenv` with `boot-args -v rd=md0`; whether
-that stuck is unknown (`nvram -p | grep boot-args` on the phone is read-only).
+
+**Result so far (menu 3, option 6, same day): the phone can talk back.**
+`irecovery -s` (the shell) prints what the phone's bootloader has printed, and
+the phone buffers its output until something reads it. Photographed output, in
+order (device-unique values not recorded):
+
+- A backlog from the start of that iBEC session: four `[NAND] Found Chip ID`
+  lines, then the banner `iBEC for n90ap, Copyright 2010, Apple Inc.`,
+  `BUILD_TAG: iBoot-889.24`, `BUILD_STYLE: RELEASE`, a `USB_SERIAL_NUMBER` line
+  with `SCEP:01` and `IBFL:00`, and `Entering recovery mode, starting command
+  prompt`. Our decrypted 8A293 iBEC contains the same two strings (the 4.0 iBoot
+  image says `iBoot for n90ap`), and the earlier hand-entered recovery readout
+  said SCEP 02 / IBFL 1b. So this was **our kexec'd 4.0 iBEC answering**, not the
+  phone's own recovery.
+- Then `Attempting to validate kernelcache @ 0x41000000`, `Kernelcache image not
+  valid`, `error loading kernelcache`: the reply to an earlier `bootx` in that
+  same session. This is the first time the phone has said why nothing happened.
+  Which files that earlier run used is not certain, since the output was
+  buffered until read.
+- `getenv build-version` returned `iBoot-889.24`; `getenv boot-args` returned
+  `-v rd=md0`, the value Test 6's option 8 saved. It stuck (housekeeping: clear
+  it later).
+- The three original files uploaded to 100%. `devicetree` and `ramdisk` printed
+  nothing. `bootx` printed nothing during the roughly 2 s listening window, which
+  could mean it started booting (the USB console dies with it) or that the reply
+  was late. The phone's screen and a `1` check afterward were not reported.
+
+So the bootloader does reject a kernel at `bootx` and says so. Not yet known:
+whether it accepts the original files. Possible reasons it might not, as guesses:
+the kexec'd iBEC may be unable to unlock Apple's encrypted files (it was entered
+from a running iOS, not a cold boot), or the file is the problem. Next: option 6
+of menu 4 (longer listening, then a `getenv` ping to see whether the phone is
+still there) in the kexec'd iBEC, and the same run in the phone's own Recovery
+Mode. The banner at the top says which bootloader answered.
 
 ## Corrected understanding
 
