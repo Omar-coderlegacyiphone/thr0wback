@@ -490,6 +490,20 @@ minutes after `bootx` before checking, instead of a couple of minutes), and
 optionally `printenv` on our own phone during a kexec'd or recovery session, to
 see our own `loaddr`/`boot-device`/`boot-partition` values for comparison.
 
+## Test 9: Legacy iOS Kit, SSH Ramdisk — first real kernel boot (2026-11-28)
+
+Using Legacy iOS Kit's "SSH Ramdisk" option (its own `idevicerestore` fork plus
+its `device_ramdisk` flow) instead of manual `irecovery` commands: the phone's
+own screen showed the **Apple logo with a progress bar** — never seen before in
+this project. Every prior attempt (ours and this one's manual precursors)
+either stayed solid black or stayed on the iTunes/cable picture. This is real
+evidence the kernelcache actually started executing and reached framebuffer
+/ progress-bar code, past the point everything manual got stuck at.
+
+Not yet confirmed: whether it finished booting (reached an SSH-reachable
+ramdisk), hung partway, or rebooted after. Next: what happened once the
+progress bar finished — black screen, reboot, or an actual SSH login.
+
 ## Corrected understanding
 
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
