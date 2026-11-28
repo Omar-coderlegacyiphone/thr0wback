@@ -413,6 +413,30 @@ of menu 4 (longer listening, then a `getenv` ping to see whether the phone is
 still there) in the kexec'd iBEC, and the same run in the phone's own Recovery
 Mode. The banner at the top says which bootloader answered.
 
+**Menu 4, option 6, in the kexec'd iBEC (confirmed: phone's own screen stayed
+black throughout, not the iTunes/cable picture): no rejection message this
+time.** All three files uploaded to 100%; `devicetree`/`ramdisk` printed nothing,
+as before; `bootx` printed nothing either; the trailing `getenv build-version`
+ping, sent a few seconds after `bootx`, answered normally with `iBoot-889.24`.
+
+That answer is itself the useful part: the same bootloader is still the thing
+listening on the USB console after `bootx` and a short wait. If the kernel had
+taken over, this exact exchange (iBoot's own console protocol, iBoot's own
+`getenv`) is not something a running kernel speaks, so the reply would most
+likely have been different or absent, not the bootloader cheerfully reporting
+its own version. Reading: still no visible handoff, same bottom line as every
+`bootx` attempt so far — but this run shows no rejection message either, unlike
+the backlogged "Kernelcache image not valid" seen earlier. Whether that earlier
+message truly came from this same kexec'd-iBEC path, or from a different run,
+is no longer certain (the phone buffers output across runs, and exactly which
+files the earlier message was reacting to was never pinned down). So: run to
+run, the response to the same files may not be consistent, or the two "no
+error"/"error" runs may not be as comparable as they looked.
+
+**Next, unchanged:** the exact same menu 4 option 6 run, this time with the
+phone in its own normal Recovery Mode (buttons), for the real comparison this
+round of testing was for.
+
 ## Corrected understanding
 
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
