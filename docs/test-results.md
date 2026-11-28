@@ -213,7 +213,9 @@ volume at the expected offset) for this build, delivered to the owner's
 computer directly (not via the phone's own network — this device's `curl` is
 permanently incapable of reaching Apple's current server, see
 `docs/dualboot-plan.md`). Planned sequence: `-f DeviceTree.bin`, `-c devicetree`,
-`-f UpdateRamdisk.dmg`, `-c ramdisk`, `-f Kernelcache.bin`, `-c bootx`.
+`-f UpdateRamdisk.dmg`, `-c ramdisk`, `-f Kernelcache.bin`, `-c bootx`. (These
+were bare payloads without Apple's IMG3 wrapper, the wrong kind of file: see
+Test 8.)
 
 First command, `irecovery -f DeviceTree.bin`, was followed almost immediately
 by the phone rebooting on its own (back to normal iOS) — the "unable to
@@ -342,6 +344,43 @@ unplugged variant is worth a few runs afterward: black, then plug in. `MODE:
 Recovery` means unplugged jumps work; the phone booting instead means they don't
 leave iBEC running.
 
+## Test 8: normal Recovery Mode baseline, and a likely reason `bootx` did nothing (2026-11-28)
+
+The owner put the phone into its **own normal Recovery Mode by hand** (buttons),
+cable in, and ran menu option 1: `MODE: Recovery`, and the phone's own screen
+showed the iTunes + cable picture. The readout differs from Test 6: IMEI is `N/A`
+and a `NONC` line is present (Test 6 had a real IMEI and `NONC` N/A), so the two
+states can be told apart. A black screen plus a real IMEI is our kexec'd 4.0
+iBEC; the picture plus `NONC` is the phone's own bootloader. (Device-unique
+values from the readout are not recorded here.)
+
+**Finding: the files sent in Test 6 were the wrong kind.** `DeviceTree.bin`,
+`UpdateRamdisk.dmg` and `Kernelcache.bin` are decrypted payloads with Apple's IMG3
+wrapper removed (first bytes `0f 00 00 00`, `00 00 00 00`, `comp`). The originals
+in the IPSW start with `3gmI` and carry TYPE / DATA / KBAG / SHSH / CERT tags.
+iBoot's `devicetree`, `ramdisk` and `bootx` commands load images through the IMG3
+loader, which checks the wrapper and the signature, so bare payloads were most
+likely rejected without any visible message while `irecovery` still printed
+"Command completed successfully". That would explain every "accepted, nothing
+happens" result in Test 6. Untested. It also corrects the earlier note that the
+kernelcache was left compressed because "iBoot decompresses it itself": iBoot
+does that after unwrapping the image, so it needs the wrapper.
+
+The originals are Apple-signed and are what iTunes sends in a normal restore, so
+using them involves no patching. (The decrypted payloads would only suit a
+patched bootloader, which this project is not doing.)
+
+**Next:** send the originals (`irecovery-menu2.sh` with `DeviceTree.img3`,
+`UpdateRamdisk.img3`, `Kernelcache.img3`, fetched from the IPSW and kept out of
+the repo) first in the phone's normal Recovery Mode (the phone is already there),
+then through the kexec'd iBEC. Signs of success: the phone's screen changes, or
+the USB identity changes from `05ac:1281`. Unknown: in normal Recovery the
+installed iBoot may not use the ramdisk (restore-style boot-args are built into
+the restore iBEC, not the installed iBoot), so it might start the installed
+system under the 4.0 kernel instead; either result is informative.
+Housekeeping: Test 6's option 8 ran `saveenv` with `boot-args -v rd=md0`; whether
+that stuck is unknown (`nvram -p | grep boot-args` on the phone is read-only).
+
 ## Corrected understanding
 
 kloader runs its file as a **bootloader-style image** at physical `0x5f000000`
@@ -370,9 +409,10 @@ See `docs/kloader-port.md`.
 6. Test 7: with the cable already in before the jump, how often does a black run
    show `MODE: Recovery`? And does an unplugged black run ever (plug in after,
    then `irecovery -q`)? Needs the computer.
-7. Owner's idea: run the same DeviceTree / ramdisk / kernelcache / `bootx` sequence
-   from the phone's own normal Recovery Mode (stock iBoot from a normal cold boot,
-   no kexec) instead of the kexec'd iBEC. If `bootx` does something visible there
+7. Owner's idea: run the DeviceTree / ramdisk / kernelcache / `bootx` sequence,
+   with the original IMG3 files (Test 8), from the phone's own normal Recovery
+   Mode (stock iBoot from a normal cold boot, no kexec) instead of the kexec'd
+   iBEC. If `bootx` does something visible there
    (for example the USB identity changes from `05ac:1281`), the kexec shortcut
    skipping the early boot stages is why it does nothing in Test 6; if it still
    does nothing, the cause is in the files or boot-args. Unknown: whether the
