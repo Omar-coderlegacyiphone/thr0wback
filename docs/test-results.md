@@ -433,9 +433,30 @@ files the earlier message was reacting to was never pinned down). So: run to
 run, the response to the same files may not be consistent, or the two "no
 error"/"error" runs may not be as comparable as they looked.
 
-**Next, unchanged:** the exact same menu 4 option 6 run, this time with the
-phone in its own normal Recovery Mode (buttons), for the real comparison this
-round of testing was for.
+**Done: the same run in the phone's own normal Recovery Mode (buttons).**
+Identical result to the kexec'd run above: no panic, no error, phone stayed on
+the iTunes/cable picture throughout. So the kexec'd iBEC and the phone's own
+real cold-boot iBoot behave exactly the same way here — **kexec is not the
+reason `bootx` goes nowhere.** Whatever's wrong is the same either way.
+
+**Also done: cleared `boot-args` and retried.** `-v rd=md0` (saved in Test 6's
+option 8) was always an unverified guess. Reset to plain `-v`
+(`irecovery -c "setenv boot-args -v"`, `irecovery -c saveenv`), then the same
+menu 4 option 6 sequence. No change: still no error, still no visible boot.
+So `rd=md0` specifically isn't what's blocking this, at least not on its own.
+
+**Where this leaves it:** three variables are now ruled out one at a time
+(kexec vs. real cold boot, and the `rd=md0` boot-arg), with the result
+identical every time: files upload fine, `devicetree`/`ramdisk` register
+silently (normal), `bootx` is accepted but nothing visible follows, and the
+same bootloader still answers `getenv` afterward. The one time an explicit
+"Kernelcache image not valid" message was seen, which run it actually came
+from was never pinned down (see above), so it may not even be reproducible
+with the current files. Remaining unknowns need either reading iBoot's own
+source/behavior for what `bootx`'s kernelcache validation checks (two pages on
+theiphonewiki.com would likely cover it; unreachable from this session, see
+`docs/dualboot-plan.md`), or crosses into modifying/bypassing that check,
+which this project has already ruled out. Parked here for now.
 
 ## Corrected understanding
 
